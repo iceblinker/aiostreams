@@ -1,4 +1,5 @@
 import { NextFunction, Request, Response, Router } from 'express';
+import * as dns from 'dns/promises';
 import {
   APIError,
   constants,
@@ -9,6 +10,8 @@ import {
   getProxyAgent,
   getTimeTakenSincePoint,
   shouldProxy,
+  isValidIp,
+  isPrivateIp,
 } from '@aiostreams/core';
 import { z } from 'zod';
 import { request, Dispatcher } from 'undici';
@@ -381,6 +384,40 @@ router.all(
             }
           }
         }
+
+        // SSRF Protection
+        const internalUrl = new URL(Env.INTERNAL_URL);
+        const isInternalRequest =
+          urlObj.hostname === internalUrl.hostname &&
+          (urlObj.port === internalUrl.port ||
+            (urlObj.port === '' &&
+              (internalUrl.port === '80' || internalUrl.port === '443'))); // Handle implicit ports
+
+        if (!isInternalRequest) {
+          if (isValidIp(urlObj.hostname)) {
+            if (isPrivateIp(urlObj.hostname)) {
+              throw new APIError(
+                constants.ErrorCode.FORBIDDEN,
+                undefined,
+                `Access to private IP ${urlObj.hostname} is forbidden`
+              );
+            }
+          } else {
+            try {
+              const resolved = await dns.lookup(urlObj.hostname);
+              if (isPrivateIp(resolved.address)) {
+                throw new APIError(
+                  constants.ErrorCode.FORBIDDEN,
+                  undefined,
+                  `Access to private IP ${resolved.address} is forbidden`
+                );
+              }
+            } catch (error) {
+               // Ignore DNS errors here, let the request fail naturally or if lookup fails it's effectively blocked
+            }
+          }
+        }
+
         const { useProxy, proxyIndex } = shouldProxy(urlObj);
         const proxyAgent = useProxy
           ? getProxyAgent(Env.ADDON_PROXY![proxyIndex])

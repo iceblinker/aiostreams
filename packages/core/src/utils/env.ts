@@ -325,7 +325,7 @@ export const Env = cleanEnv(process.env, {
     desc: 'Tag of the addon',
   }),
   DESCRIPTION: readonly({
-    default: metadata?.description || 'unknown',
+    default: metadata?.description || 'A unified studio addon for streaming content.',
     desc: 'Description of the addon',
   }),
   NODE_ENV: str({
@@ -380,11 +380,11 @@ export const Env = cleanEnv(process.env, {
     desc: 'Internal secret for the addon, used for internal communication between built-in addons and the server',
   }),
   ADDON_NAME: str({
-    default: 'AIOStreams',
+    default: 'Studio Addon',
     desc: 'Name of the addon',
   }),
   ADDON_ID: str({
-    default: 'com.aiostreams.viren070',
+    default: 'com.studio.addon',
     desc: 'ID of the addon',
   }),
   PORT: port({

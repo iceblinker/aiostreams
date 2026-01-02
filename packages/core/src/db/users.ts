@@ -1,6 +1,7 @@
 import { UserData } from './schemas.js';
 import { TransactionQueue } from './queue.js';
 import { DB } from './db.js';
+import { createHash } from 'crypto';
 import {
   decryptString,
   deriveKey,
@@ -13,12 +14,14 @@ import {
   verifyHash,
   validateConfig,
   applyMigrations,
+  Cache,
 } from '../utils/index.js';
 
 const APIError = constants.APIError;
 const logger = createLogger('users');
 const db = DB.getInstance();
 const txQueue = TransactionQueue.getInstance();
+const userCache = Cache.getInstance<string, UserData>('user_config', 1000, 'memory');
 
 export class UserRepository {
   static async createUser(
@@ -128,6 +131,17 @@ export class UserRepository {
     uuid: string,
     password: string
   ): Promise<UserData | null> {
+    const cacheKey = `${uuid}:${createHash('sha256').update(password).digest('hex')}`;
+    const cached = await userCache.get(cacheKey);
+    if (cached) {
+      // update accessed_at asynchronously
+      db.execute(
+        'UPDATE users SET accessed_at = CURRENT_TIMESTAMP WHERE uuid = ?',
+        [uuid]
+      ).catch(() => {});
+      return cached;
+    }
+
     try {
       const result = await db.query(
         'SELECT config, config_salt, password_hash FROM users WHERE uuid = ?',
@@ -193,7 +207,9 @@ export class UserRepository {
         false;
       decryptedConfig.ip = undefined;
       logger.info(`Retrieved configuration for user ${uuid}`);
-      return applyMigrations(decryptedConfig);
+      const finalConfig = applyMigrations(decryptedConfig);
+      await userCache.set(cacheKey, finalConfig, 300);
+      return finalConfig;
     } catch (error) {
       logger.error(
         `Error retrieving user ${uuid}: ${error instanceof Error ? error.message : String(error)}`
@@ -268,6 +284,8 @@ export class UserRepository {
         );
         await tx.commit();
         committed = true;
+        const cacheKey = `${uuid}:${createHash('sha256').update(password).digest('hex')}`;
+        await userCache.delete(cacheKey);
         logger.info(`Updated user ${uuid} with an updated configuration`);
       } catch (error) {
         logger.error(
@@ -321,6 +339,8 @@ export class UserRepository {
 
         await tx.commit();
         committed = true;
+        const cacheKey = `${uuid}:${createHash('sha256').update(password).digest('hex')}`;
+        await userCache.delete(cacheKey);
         logger.info(`Deleted user ${uuid}`);
       } catch (error) {
         logger.error(

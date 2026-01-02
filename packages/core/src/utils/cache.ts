@@ -303,4 +303,8 @@ export class Cache<K, V> {
     if (this.backend instanceof RedisCacheBackend) return 'redis';
     return 'sql';
   }
+
+  keys(pattern?: string): Promise<K[]> {
+    return this.backend.keys(pattern);
+  }
 }

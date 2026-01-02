@@ -161,6 +161,17 @@ For detailed instructions, check out the Wiki:
 - **[Deployment Guide](https://github.com/Viren070/AIOStreams/wiki/Deployment)**
 - **[Configuration Guide](https://github.com/Viren070/AIOStreams/wiki/Configuration)**
 
+## ⚙️ Configuration
+
+To configure AIOStreams, navigate to the following URL in your browser:
+
+```
+http://localhost:3002/configure
+```
+
+This page allows you to enable addons, manage API keys, and set up your filtering and sorting rules.
+
+
 ## ❤️ Support the Project
 
 AIOStreams is a passion project developed and maintained for free. If you find it useful, please consider supporting its development.

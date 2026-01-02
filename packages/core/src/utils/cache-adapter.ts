@@ -17,6 +17,7 @@ export interface CacheBackend<K, V> {
   clear(): Promise<void>;
   getTTL(key: K): Promise<number>;
   waitUntilReady(): Promise<void>;
+  keys(pattern?: string): Promise<K[]>;
 }
 
 // Memory cache implementation
@@ -127,6 +128,23 @@ export class MemoryCacheBackend<K, V> implements CacheBackend<K, V> {
 
   async waitUntilReady(): Promise<void> {
     return Promise.resolve();
+  }
+
+  async keys(pattern: string = '*'): Promise<K[]> {
+    const keys: K[] = [];
+    // simple glob matching for memory cache if needed, but for now just return all if *
+    // or simple substring match
+    const regex =
+      pattern === '*'
+        ? /.*/
+        : new RegExp('^' + pattern.replace(/\*/g, '.*') + '$');
+
+    for (const key of this.cache.keys()) {
+      if (regex.test(String(key))) {
+        keys.push(key);
+      }
+    }
+    return keys;
   }
 }
 
@@ -351,6 +369,26 @@ export class RedisCacheBackend<K, V> implements CacheBackend<K, V> {
     while (!this.client.isOpen) {
       await new Promise((resolve) => setTimeout(resolve, 100));
     }
+  }
+
+  async keys(pattern: string = '*'): Promise<K[]> {
+    return withTimeout(
+      async () => {
+        const keys = await this.client.keys(
+          `${REDIS_PREFIX}${this.prefix}${pattern}`
+        );
+        // remove prefix
+        return keys.map((k) =>
+          k.replace(`${REDIS_PREFIX}${this.prefix}`, '')
+        ) as unknown as K[];
+      },
+      [],
+      {
+        timeout: this.timeout,
+        shouldProceed: () => this.client.isOpen,
+        getContext: () => `getting keys with pattern ${pattern} from Redis`,
+      }
+    );
   }
 }
 
@@ -632,6 +670,22 @@ export class SQLCacheBackend<K, V> implements CacheBackend<K, V> {
       throw new Error('Database is not initialized');
     }
     return Promise.resolve();
+  }
+
+  async keys(pattern: string = '*'): Promise<K[]> {
+    try {
+      const sqlPattern = pattern.replace(/\*/g, '%');
+      const rows = await this.db.query(
+        'SELECT key FROM cache WHERE key LIKE ?',
+        [`${this.prefix}${sqlPattern}`]
+      );
+      return rows.map((row) =>
+        row.key.replace(this.prefix, '')
+      ) as unknown as K[];
+    } catch (err) {
+      logger.error(`Error getting keys with pattern ${pattern} from SQL cache: ${err}`);
+      return [];
+    }
   }
 }
 

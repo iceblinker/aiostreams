@@ -4,14 +4,27 @@ services:
     container_name: aiostreams
     restart: unless-stopped
     ports:
-      - 3000:3000
+      - 3002:3000
     env_file:
       - .env
     volumes:
       - ./data:/app/data
+    networks:
+      - ai_network
+      - default
+    environment:
+      - OLLAMA_HOST=http://ollama:11434
+      - SEARCH_HOST=http://search-api:8080
+      - STREMIO_ADDON_HOST=http://stremio-addon:8080
+      - MEDIAFLOW_HOST=http://mediaflow-proxy:8000
+      - CHROMADB_HOST=http://chromadb:8000
     healthcheck:
       test: wget -qO- http://localhost:3000/api/v1/status
       interval: 1m
       timeout: 10s
       retries: 5
       start_period: 10s
+
+networks:
+  ai_network:
+    external: true
