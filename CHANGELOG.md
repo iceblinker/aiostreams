@@ -1,5 +1,71 @@
 # Changelog
 
+## [2.21.4](https://github.com/Viren070/AIOStreams/compare/v2.21.3...v2.21.4) (2026-01-16)
+
+
+### Bug Fixes
+
+* handle undefined user agent and ensure only added when valid ([6ad1aba](https://github.com/Viren070/AIOStreams/commit/6ad1aba842eb8be2a1da0f40fd035bbea10acf3b))
+
+## [2.21.3](https://github.com/Viren070/AIOStreams/compare/v2.21.2...v2.21.3) (2026-01-15)
+
+
+### Bug Fixes
+
+* **presets/sootio:** ensure httpProviders only added if defined, remove scraper options ([73894a4](https://github.com/Viren070/AIOStreams/commit/73894a46c0dbbb92d546dadb9fcc3fdad5516710))
+
+## [2.21.2](https://github.com/Viren070/AIOStreams/compare/v2.21.1...v2.21.2) (2026-01-15)
+
+
+### Bug Fixes
+
+* allow setting user agent to false to disable it, disable by default for newznab ([9f88bc6](https://github.com/Viren070/AIOStreams/commit/9f88bc6875c35105688054e637ea309c75f61ed1))
+* **presets/sootio:** add indexer option, easynews support, and correctly handle multiple services ([afc4523](https://github.com/Viren070/AIOStreams/commit/afc4523b02a202097333a921373783264e858407))
+* **presets/sootio:** update HTTP stream provider options ([#626](https://github.com/Viren070/AIOStreams/issues/626)) ([e0bd36e](https://github.com/Viren070/AIOStreams/commit/e0bd36e631303a31b2c8c6add7e0b9f7a5d1cf90))
+* use correct timeout ([df4160c](https://github.com/Viren070/AIOStreams/commit/df4160c387ecde867cd2146f8aa46c9b3a8b75a3))
+
+## [2.21.1](https://github.com/Viren070/AIOStreams/compare/v2.21.0...v2.21.1) (2026-01-11)
+
+
+### Bug Fixes
+
+* **anime-database:** enrich mappings where possible ([f31b701](https://github.com/Viren070/AIOStreams/commit/f31b7019612fa5867c35ab1eb6c8375ced13c48b))
+* **builtins:** prefer size from debrid ([b3470d6](https://github.com/Viren070/AIOStreams/commit/b3470d6816949772c5f92c227acc91dedc9d490f))
+* **env:** handle commas within user agent in hostname mapping ([b20c226](https://github.com/Viren070/AIOStreams/commit/b20c2260c0e56c075299b17412f64ea69f3347a2)), closes [#623](https://github.com/Viren070/AIOStreams/issues/623)
+* handle many entries for one id, fallback to synonym matching ([2feed67](https://github.com/Viren070/AIOStreams/commit/2feed6791908ec6e1a652e43c21cd30ae802f3be))
+* prefer exact episode matches to batches ([86b771f](https://github.com/Viren070/AIOStreams/commit/86b771f8787cf21f647163519f24401413f1de14))
+* **seadex:** pass season/episode to get correct mapping ([9cc333a](https://github.com/Viren070/AIOStreams/commit/9cc333a0c1763db47a4787a00ed5dac1b068374b))
+* **usenet-stream:** add nzb url to lock key ([a1dcd52](https://github.com/Viren070/AIOStreams/commit/a1dcd52592d15423a42703cd629327007d68a4b2))
+
+## [2.21.0](https://github.com/Viren070/AIOStreams/compare/v2.20.1...v2.21.0) (2026-01-09)
+
+
+### Features
+
+* **builtins/seadex:** add addon ([fe6ce9d](https://github.com/Viren070/AIOStreams/commit/fe6ce9d210dd7382e6e8ef8d03ff4417d4e516a4))
+* **builtins:** add auto remove downloads option ([#605](https://github.com/Viren070/AIOStreams/issues/605)) ([2cf73eb](https://github.com/Viren070/AIOStreams/commit/2cf73eb562a50625a4e13c0c554aa1242372078e))
+
+
+### Bug Fixes
+
+* adjust poster service option ([616838a](https://github.com/Viren070/AIOStreams/commit/616838a51e13f270819aaf57717b9895dc662204))
+* allow 'removing' presets, handle disabled presets explicitly., handle initialisation errors in catalog route ([e8c961a](https://github.com/Viren070/AIOStreams/commit/e8c961ae1a1ab41b78e5836442cce7dd5a331cae))
+* **builtins/seadex:** add torrent sources for Nyaa ([83259b7](https://github.com/Viren070/AIOStreams/commit/83259b75ad295dd7b951edd010e49cf761a00fd8))
+* **builtins:** pass release group through ([f1e3096](https://github.com/Viren070/AIOStreams/commit/f1e309608cd72aaa8d2bdea1a61735fc58944c66))
+* filter out top poster api key ([4ebf159](https://github.com/Viren070/AIOStreams/commit/4ebf159ff3c595a5105e74612cea1dc848cefb9f))
+* fix digital release ([#600](https://github.com/Viren070/AIOStreams/issues/600)) ([de956de](https://github.com/Viren070/AIOStreams/commit/de956deb9472f5a85be660030199d6fac72b36de))
+* handle sub client redis errors ([2fee58d](https://github.com/Viren070/AIOStreams/commit/2fee58d82ff591b31dd771d9f5ab1a848f4cc723))
+* make domain user agent env var consistent ([80a244b](https://github.com/Viren070/AIOStreams/commit/80a244b7a2a55b5e5c56e924d6f3878e4feaea6d))
+* **parser/regex:** handle optional 'a' after ddp for audio channel patterns ([#601](https://github.com/Viren070/AIOStreams/issues/601)) ([60ca210](https://github.com/Viren070/AIOStreams/commit/60ca210d7eaeffea4d4cbadd0a65460711492407))
+* pass folder size in builtins, add folderName support ([e2b9a19](https://github.com/Viren070/AIOStreams/commit/e2b9a19638b3053a72e52bf15d0fb22ee162eb6a))
+* **presets/comet:** change Comet default url to developers' own instance ([#619](https://github.com/Viren070/AIOStreams/issues/619)) ([20d3c40](https://github.com/Viren070/AIOStreams/commit/20d3c40b48990918a7b88c0b589a7263dbbc42a4))
+* **presets/comet:** update logo url ([438b0cd](https://github.com/Viren070/AIOStreams/commit/438b0cd125704c33963160a46a8a0eb287a23328))
+* **presets/debridio-ic4a:** mark preset as removed ([65cfcf6](https://github.com/Viren070/AIOStreams/commit/65cfcf669299eec369d9b593dd67536540060bc2))
+* **presets/sootio:** update default url to developers' own instance ([#618](https://github.com/Viren070/AIOStreams/issues/618)) ([533eb61](https://github.com/Viren070/AIOStreams/commit/533eb61144b3b5cbbb534149d515f799e26d2141))
+* **templates:** Apply migrations before parsing the config ([#604](https://github.com/Viren070/AIOStreams/issues/604)) ([21fec28](https://github.com/Viren070/AIOStreams/commit/21fec287dbe432d74dc646d0177930c62855ac6c))
+* update default zilean URL ([67f9062](https://github.com/Viren070/AIOStreams/commit/67f906289a09e947946f02cf3aab8ed55ab2e208))
+* use logical OR for public webdav URL fallback ([1dd01c4](https://github.com/Viren070/AIOStreams/commit/1dd01c49e7dffa44f1f46e109208d91167737092))
+
 ## [2.20.1](https://github.com/Viren070/AIOStreams/compare/v2.20.0...v2.20.1) (2026-01-03)
 
 

@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import * as constants from '../utils/constants.js';
+import { Env } from '../utils/env.js';
 
 const ServiceIds = z.enum(constants.SERVICES);
 
@@ -46,8 +47,8 @@ const Formatter = z.object({
   id: z.enum(constants.FORMATTERS),
   definition: z
     .object({
-      name: z.string().max(5000),
-      description: z.string().max(5000),
+      name: z.string().max(Env.MAX_FORMATTER_TEMPLATE_LENGTH),
+      description: z.string().max(Env.MAX_FORMATTER_TEMPLATE_LENGTH),
     })
     .optional(),
 });
@@ -99,6 +100,12 @@ const SizeFilter = z.object({
 });
 
 const SizeFilterOptions = z.object({
+  global: SizeFilter.optional(),
+  resolution: z.partialRecord(Resolutions, SizeFilter).optional(),
+});
+
+const BitrateFilterOptions = z.object({
+  useMetadataRuntime: z.boolean().optional().default(true),
   global: SizeFilter.optional(),
   resolution: z.partialRecord(Resolutions, SizeFilter).optional(),
 });
@@ -423,10 +430,18 @@ export const UserDataSchema = z.object({
   excludeUncachedFromServices: z.array(z.string().min(1)).optional(),
   excludeUncachedFromStreamTypes: z.array(StreamTypes).optional(),
   excludeUncachedMode: z.enum(['or', 'and']).optional(),
-  excludedStreamExpressions: z.array(z.string().min(1).max(3000)).optional(),
-  requiredStreamExpressions: z.array(z.string().min(1).max(3000)).optional(),
-  preferredStreamExpressions: z.array(z.string().min(1).max(3000)).optional(),
-  includedStreamExpressions: z.array(z.string().min(1).max(3000)).optional(),
+  excludedStreamExpressions: z
+    .array(z.string().min(1).max(Env.MAX_SEL_LENGTH))
+    .optional(),
+  requiredStreamExpressions: z
+    .array(z.string().min(1).max(Env.MAX_SEL_LENGTH))
+    .optional(),
+  preferredStreamExpressions: z
+    .array(z.string().min(1).max(Env.MAX_SEL_LENGTH))
+    .optional(),
+  includedStreamExpressions: z
+    .array(z.string().min(1).max(Env.MAX_SEL_LENGTH))
+    .optional(),
   // disableGroups: z.boolean().optional(),
   // groups: z
   //   .array(
@@ -439,7 +454,7 @@ export const UserDataSchema = z.object({
   dynamicAddonFetching: z
     .object({
       enabled: z.boolean().optional(),
-      condition: z.string().max(3000).optional(),
+      condition: z.string().max(Env.MAX_SEL_LENGTH).optional(),
     })
     .optional(),
   groups: z
@@ -449,7 +464,7 @@ export const UserDataSchema = z.object({
         .array(
           z.object({
             addons: z.array(z.string().min(1)),
-            condition: z.string().min(1).max(3000),
+            condition: z.string().min(1).max(Env.MAX_SEL_LENGTH),
           })
         )
         .optional(),
@@ -478,13 +493,14 @@ export const UserDataSchema = z.object({
   rpdbApiKey: z.string().optional(),
   // rpdbUseRedirectApi: z.boolean().optional(),
   topPosterApiKey: z.string().optional(),
-  posterService: z.enum(['rpdb', 'top-poster']).optional(),
+  posterService: z.enum(['rpdb', 'top-poster', 'none']).optional(),
   usePosterRedirectApi: z.boolean().optional(),
   usePosterServiceForMeta: z.boolean().optional(),
   formatter: Formatter,
   proxy: StreamProxyConfig.optional(),
   resultLimits: ResultLimitOptions.optional(),
   size: SizeFilterOptions.optional(),
+  bitrate: BitrateFilterOptions.optional(),
   hideErrors: z.boolean().optional(),
   hideErrorsForResources: z.array(ResourceSchema).optional(),
   // showStatistics: z.boolean().optional(),
@@ -550,6 +566,8 @@ export const UserDataSchema = z.object({
   mergedCatalogs: z.array(MergedCatalog).optional(),
   externalDownloads: z.boolean().optional(),
   cacheAndPlay: CacheAndPlaySchema.optional(),
+
+  autoRemoveDownloads: z.boolean().optional(),
 });
 
 export type UserData = z.infer<typeof UserDataSchema>;
@@ -679,43 +697,41 @@ export const NNTPServersSchema = z.array(NNTPServerSchema);
 
 export type NNTPServers = z.infer<typeof NNTPServersSchema>;
 
-export const StreamSchema = z
-  .object({
-    url: z.string().or(z.null()).optional(),
-    nzbUrl: z.string().or(z.null()).optional(),
-    servers: z.array(z.string().min(1)).nullable().optional(),
-    rarUrls: z.array(SourceSchema).nullable().optional(),
-    zipUrls: z.array(SourceSchema).nullable().optional(),
-    '7zipUrls': z.array(SourceSchema).nullable().optional(),
-    tgzUrls: z.array(SourceSchema).nullable().optional(),
-    tarUrls: z.array(SourceSchema).nullable().optional(),
-    ytId: z.string().nullable().optional(),
-    infoHash: z.string().nullable().optional(),
-    fileIdx: z.number().or(z.null()).optional(),
-    externalUrl: z.string().nullable().optional(),
-    name: z.string().nullable().optional(),
-    title: z.string().nullable().optional(),
-    description: z.string().nullable().optional(),
-    subtitles: z.array(SubtitleSchema).or(z.null()).optional(),
-    sources: z.array(z.string().min(1)).or(z.null()).optional(),
-    behaviorHints: z
-      .object({
-        countryWhitelist: z.array(z.string().length(3)).or(z.null()).optional(),
-        notWebReady: z.boolean().or(z.null()).optional(),
-        bingeGroup: z.string().nullable().optional(),
-        proxyHeaders: z
-          .object({
-            request: z.record(z.string().min(1), z.string().min(1)).optional(),
-            response: z.record(z.string().min(1), z.string().min(1)).optional(),
-          })
-          .optional(),
-        videoHash: z.string().nullable().optional(),
-        videoSize: z.number().or(z.null()).optional(),
-        filename: z.string().nullable().optional(),
-      })
-      .optional(),
-  })
-  .passthrough();
+export const StreamSchema = z.looseObject({
+  url: z.string().or(z.null()).optional(),
+  nzbUrl: z.string().or(z.null()).optional(),
+  servers: z.array(z.string().min(1)).nullable().optional(),
+  rarUrls: z.array(SourceSchema).nullable().optional(),
+  zipUrls: z.array(SourceSchema).nullable().optional(),
+  '7zipUrls': z.array(SourceSchema).nullable().optional(),
+  tgzUrls: z.array(SourceSchema).nullable().optional(),
+  tarUrls: z.array(SourceSchema).nullable().optional(),
+  ytId: z.string().nullable().optional(),
+  infoHash: z.string().nullable().optional(),
+  fileIdx: z.number().or(z.null()).optional(),
+  externalUrl: z.string().nullable().optional(),
+  name: z.string().nullable().optional(),
+  title: z.string().nullable().optional(),
+  description: z.string().nullable().optional(),
+  subtitles: z.array(SubtitleSchema).or(z.null()).optional(),
+  sources: z.array(z.string().min(1)).or(z.null()).optional(),
+  behaviorHints: z
+    .looseObject({
+      countryWhitelist: z.array(z.string().length(3)).or(z.null()).optional(),
+      notWebReady: z.boolean().or(z.null()).optional(),
+      bingeGroup: z.string().nullable().optional(),
+      proxyHeaders: z
+        .object({
+          request: z.record(z.string().min(1), z.string().min(1)).optional(),
+          response: z.record(z.string().min(1), z.string().min(1)).optional(),
+        })
+        .optional(),
+      videoHash: z.string().nullable().optional(),
+      videoSize: z.number().or(z.null()).optional(),
+      filename: z.string().nullable().optional(),
+    })
+    .optional(),
+});
 
 export const StreamResponseSchema = z.object({
   streams: z.array(StreamSchema),
@@ -737,6 +753,9 @@ export const ParsedFileSchema = z.object({
   title: z.string().optional(),
   year: z.coerce.string().optional(),
   seasons: z.array(z.number()).optional(),
+  volumes: z.array(z.number()).optional(),
+  folderSeasons: z.array(z.number()).optional(),
+  folderEpisodes: z.array(z.number()).optional(),
   episodes: z.array(z.number()).optional(),
   // seasonEpisode: z.array(z.string()).optional(),
   edition: z.string().optional(),
@@ -796,6 +815,7 @@ export const ParsedStreamSchema = z.object({
     })
     .optional(),
   duration: z.number().optional(),
+  bitrate: z.number().optional(),
   library: z.boolean().optional(),
   seadex: z
     .object({
@@ -1028,6 +1048,7 @@ const PresetMinimalMetadataSchema = z.object({
   DISABLED: z
     .object({
       reason: z.string(),
+      removed: z.boolean().optional(),
       disabled: z.boolean(),
     })
     .optional(),

@@ -3,6 +3,7 @@ import * as constants from '../utils/constants.js';
 import { createLogger } from '../utils/logger.js';
 import {
   formatBytes,
+  formatBitrate,
   formatDuration,
   formatHours,
   languageToCode,
@@ -55,6 +56,7 @@ export interface ParseValue {
     filename: string | null;
     folderName: string | null;
     size: number | null;
+    bitrate: number | null;
     folderSize: number | null;
     library: boolean;
     quality: string | null;
@@ -87,12 +89,16 @@ export interface ParseValue {
     indexer: string | null;
     year: string | null;
     title: string | null;
+    folderSeasons: number[] | null;
+    formattedFolderSeasons: string | null;
     seasons: number[] | null;
     season: number | null;
     formattedSeasons: string | null;
     episodes: number[] | null;
     episode: number | null;
     formattedEpisodes: string | null;
+    folderEpisodes: number[] | null;
+    formattedFolderEpisodes: string | null;
     seasonEpisode: string[] | null;
     seasonPack: boolean;
     seeders: number | null;
@@ -211,6 +217,19 @@ export abstract class BaseFormatter {
       formattedEpisodeString,
     ].filter((v) => v !== undefined);
 
+    const formattedFolderSeasonString = stream.parsedFile?.folderSeasons?.length
+      ? stream.parsedFile.folderSeasons.length === 1
+        ? `S${getPaddedNumber(stream.parsedFile.folderSeasons[0], 2)}`
+        : `S${getPaddedNumber(stream.parsedFile.folderSeasons[0], 2)}-${getPaddedNumber(stream.parsedFile.folderSeasons[stream.parsedFile.folderSeasons.length - 1], 2)}`
+      : undefined;
+
+    const formattedFolderEpisodesString = stream.parsedFile?.folderEpisodes
+      ?.length
+      ? stream.parsedFile.folderEpisodes.length === 1
+        ? `E${getPaddedNumber(stream.parsedFile.folderEpisodes[0], 2)}`
+        : `E${getPaddedNumber(stream.parsedFile.folderEpisodes[0], 2)}-${getPaddedNumber(stream.parsedFile.folderEpisodes[stream.parsedFile.folderEpisodes.length - 1], 2)}`
+      : undefined;
+
     const sortedLanguages = languages
       ? [...languages].sort((a, b) => {
           const aIndex = userSpecifiedLanguages.indexOf(a as any);
@@ -306,12 +325,17 @@ export abstract class BaseFormatter {
         season: stream.parsedFile?.seasons?.[0] || null,
         formattedSeasons: formattedSeasonString || null,
         seasons: stream.parsedFile?.seasons || null,
+        folderSeasons: stream.parsedFile?.folderSeasons || null,
+        formattedFolderSeasons: formattedFolderSeasonString || null,
         episode: stream.parsedFile?.episodes?.[0] || null,
         formattedEpisodes: formattedEpisodeString || null,
         episodes: stream.parsedFile?.episodes || null,
+        formattedFolderEpisodes: formattedFolderEpisodesString || null,
+        folderEpisodes: stream.parsedFile?.folderEpisodes || null,
         seasonEpisode: seasonEpisode || null,
         seasonPack: stream.parsedFile?.seasonPack ?? false,
         duration: stream.duration || null,
+        bitrate: stream.bitrate ?? null,
         infoHash: stream.torrent?.infoHash || null,
         age: formattedAge,
         ageHours: stream.age || null,
@@ -888,6 +912,7 @@ class ModifierConstants {
     reverse: (value: string) => value.split('').reverse().join(''),
     base64: (value: string) => btoa(value),
     string: (value: string) => value,
+    smallcaps: (value: string) => makeSmall(value),
   };
 
   static arrayModifierGetOrDefault = (value: string[], i: number) =>
@@ -918,6 +943,8 @@ class ModifierConstants {
     rbytes10: (value: number) => formatBytes(value, 1000, true),
     bytes2: (value: number) => formatBytes(value, 1024),
     rbytes2: (value: number) => formatBytes(value, 1024, true),
+    bitrate: (value: number) => formatBitrate(value),
+    rbitrate: (value: number) => formatBitrate(value, true),
     string: (value: number) => value.toString(),
     time: (value: number) => formatDuration(value),
   };
@@ -1004,6 +1031,7 @@ Number: {stream.size}
   ::hex {stream.size::hex}
   ::octal {stream.size::octal}
   ::binary {stream.size::binary}
+  ::bitrate {stream.bitrate::bitrate}
 {tools.newLine}
 
 Array: {stream.languages}

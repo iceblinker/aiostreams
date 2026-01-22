@@ -123,9 +123,19 @@ class StreamParser {
     }
     parsedStream.size = this.getSize(stream, parsedStream);
     parsedStream.folderSize = this.getFolderSize(stream, parsedStream);
+    if (
+      parsedStream.size &&
+      parsedStream.folderSize &&
+      Math.abs(parsedStream.size - parsedStream.folderSize) /
+        parsedStream.size <
+        0.05
+    ) {
+      parsedStream.folderSize = undefined;
+    }
     parsedStream.indexer = this.getIndexer(stream, parsedStream);
     parsedStream.service = this.getService(stream, parsedStream);
     parsedStream.duration = this.getDuration(stream, parsedStream);
+    parsedStream.bitrate = this.getBitrate(stream, parsedStream);
     parsedStream.type = this.getStreamType(
       stream,
       parsedStream.service,
@@ -254,7 +264,24 @@ class StreamParser {
         return match[1];
       }
     }
+    if (typeof stream.behaviorHints?.folderName === 'string') {
+      return stream.behaviorHints.folderName;
+    }
     return undefined;
+  }
+
+  protected getResolution(
+    stream: Stream,
+    currentParsedStream: ParsedStream
+  ): string | undefined {
+    return undefined; //
+  }
+
+  protected getReleaseGroup(
+    stream: Stream,
+    currentParsedStream: ParsedStream
+  ): string | undefined {
+    return undefined; //
   }
 
   protected getSize(
@@ -289,6 +316,15 @@ class StreamParser {
     stream: Stream,
     currentParsedStream: ParsedStream
   ): number | undefined {
+    if (
+      (stream.behaviorHints?.folderSize !== undefined &&
+        typeof stream.behaviorHints?.folderSize === 'number') ||
+      typeof stream.behaviorHints?.folderSize === 'string'
+    ) {
+      return (
+        bytes.parse(stream.behaviorHints?.folderSize.toString()) ?? undefined
+      );
+    }
     return undefined;
   }
 
@@ -394,6 +430,20 @@ class StreamParser {
     return parseDuration(stream.description || '');
   }
 
+  protected getBitrate(
+    _: Stream,
+    currentParsedStream: ParsedStream
+  ): number | undefined {
+    if (currentParsedStream.size && currentParsedStream.duration) {
+      const sizeBits = currentParsedStream.size * 8;
+      const durationSeconds = currentParsedStream.duration / 1000;
+      if (durationSeconds > 0) {
+        return Math.round(sizeBits / durationSeconds);
+      }
+    }
+    return undefined;
+  }
+
   protected getStreamType(
     stream: Stream,
     service: ParsedStream['service'],
@@ -450,24 +500,62 @@ class StreamParser {
     const fileParsed = parsedStream.filename
       ? FileParser.parse(parsedStream.filename)
       : undefined;
-    function arrayFallback<T>(
-      arr1: T[] | undefined,
-      arr2: T[] | undefined
-    ): T[] | undefined {
-      return arr1?.length ? arr1 : arr2?.length ? arr2 : undefined;
+    function arrayFallback<T>(...arrs: (T[] | undefined)[]): T[] | undefined {
+      for (const arr of arrs) {
+        if (arr && arr.length > 0) {
+          return arr;
+        }
+      }
     }
     function arrayMerge<T>(arr1: T[] | undefined, arr2: T[] | undefined): T[] {
       return Array.from(new Set([...(arr1 ?? []), ...(arr2 ?? [])]));
     }
+
+    let seasonPack = folderParsed?.seasonPack || fileParsed?.seasonPack;
+    let episodes = arrayFallback(fileParsed?.episodes, folderParsed?.episodes);
+    let seasons = arrayFallback(
+      fileParsed?.seasons,
+      folderParsed?.seasons,
+      fileParsed?.volumes,
+      folderParsed?.volumes
+    );
+
+    // Detect season pack based on folder size being significantly larger than file size
+    if (
+      seasonPack === undefined &&
+      episodes &&
+      episodes.length > 0 && // to handle movie folders
+      parsedStream.folderSize &&
+      parsedStream.size &&
+      parsedStream.folderSize > parsedStream.size * 2
+    ) {
+      seasonPack = true;
+    }
+    // Detect season pack when more than 5 episodes are present
+    if (seasonPack === undefined && episodes && episodes.length > 5) {
+      seasonPack = true;
+    }
     return {
       title: folderParsed?.title || fileParsed?.title,
       year: fileParsed?.year || folderParsed?.year,
-      seasons: arrayFallback(fileParsed?.seasons, folderParsed?.seasons),
-      episodes: arrayFallback(fileParsed?.episodes, folderParsed?.episodes),
-      resolution: fileParsed?.resolution || folderParsed?.resolution,
+      folderSeasons:
+        seasons !== folderParsed?.seasons ? folderParsed?.seasons : undefined,
+      folderEpisodes:
+        episodes !== folderParsed?.episodes
+          ? folderParsed?.episodes
+          : undefined,
+      seasons,
+      episodes,
+      resolution:
+        this.getResolution(stream, parsedStream) ||
+        fileParsed?.resolution ||
+        folderParsed?.resolution,
       quality: fileParsed?.quality || folderParsed?.quality,
       encode: fileParsed?.encode || folderParsed?.encode,
-      releaseGroup: fileParsed?.releaseGroup || folderParsed?.releaseGroup,
+      releaseGroup:
+        this.getReleaseGroup(stream, parsedStream) ||
+        fileParsed?.releaseGroup ||
+        folderParsed?.releaseGroup,
       edition: fileParsed?.edition || folderParsed?.edition,
       remastered: fileParsed?.remastered || folderParsed?.remastered,
       repack: fileParsed?.repack || folderParsed?.repack,

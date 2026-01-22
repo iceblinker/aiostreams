@@ -429,7 +429,8 @@ export async function validateConfig(
   const needTmdb =
     config.titleMatching?.enabled ||
     config.yearMatching?.enabled ||
-    config.digitalReleaseFilter?.enabled;
+    config.digitalReleaseFilter?.enabled ||
+    config.bitrate?.useMetadataRuntime;
 
   if (needTmdb && !tmdbAuth) {
     throw new Error(
@@ -812,7 +813,7 @@ function validatePreset(preset: PresetObject) {
 
   if (presetMeta.DISABLED) {
     throw new Error(
-      `Addon '${presetMeta.NAME}' is disabled: ${presetMeta.DISABLED.reason}`
+      `${presetMeta.NAME} has been ${presetMeta.DISABLED.removed ? 'removed' : 'disabled'}: ${presetMeta.DISABLED.reason}`
     );
   }
 

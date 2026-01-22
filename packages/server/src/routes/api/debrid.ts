@@ -19,6 +19,7 @@ import {
   FileInfoSchema,
   getSimpleTextHash,
   FileInfo,
+  maskSensitiveInfo,
 } from '@aiostreams/core';
 import { ZodError } from 'zod';
 import { StaticFiles } from '../../app.js';
@@ -64,7 +65,19 @@ router.get(
       } catch (error: any) {
         fileInfo = await fileInfoStore()?.get(encodedFileInfo);
         if (!fileInfo) {
-          throw error;
+          logger.warn(`Could not get file info`, {
+            fileInfo: encodedFileInfo,
+            error,
+            fileInfoStoreAvailable: fileInfoStore() ? true : false,
+          });
+          next(
+            new APIError(
+              constants.ErrorCode.BAD_REQUEST,
+              undefined,
+              'Failed to parse file info and not found in store.'
+            )
+          );
+          return;
         }
       }
 
@@ -77,9 +90,23 @@ router.get(
         );
       }
 
-      const storeAuth = ServiceAuthSchema.parse(
-        JSON.parse(decryptedStoreAuth.data)
-      );
+      let storeAuth: ServiceAuth;
+      try {
+        storeAuth = ServiceAuthSchema.parse(
+          JSON.parse(decryptedStoreAuth.data)
+        );
+      } catch (error: any) {
+        logger.warn(`Could not parse decrypted store auth`, {
+          decryptedStoreAuth: maskSensitiveInfo(decryptedStoreAuth.data),
+          error,
+        });
+        throw new APIError(
+          constants.ErrorCode.BAD_REQUEST,
+          undefined,
+          'Failed to parse store auth'
+        );
+      }
+
       const metadata: TitleMetadata | undefined =
         await metadataStore().get(metadataId);
       if (!metadata) {
@@ -123,7 +150,8 @@ router.get(
         streamUrl = await debridInterface.resolve(
           playbackInfo,
           filename,
-          fileInfo.cacheAndPlay ?? false
+          fileInfo.cacheAndPlay ?? false,
+          fileInfo.autoRemoveDownloads
         );
       } catch (error: any) {
         let staticFile: string = StaticFiles.INTERNAL_SERVER_ERROR;
@@ -141,6 +169,9 @@ router.get(
               break;
             case 'PAYMENT_REQUIRED':
               staticFile = StaticFiles.PAYMENT_REQUIRED;
+              break;
+            case 'TOO_MANY_REQUESTS':
+              staticFile = StaticFiles.TOO_MANY_REQUESTS;
               break;
             case 'FORBIDDEN':
               staticFile = StaticFiles.FORBIDDEN;
@@ -165,27 +196,19 @@ router.get(
           );
         }
 
-        res.status(302).redirect(`/static/${staticFile}`);
+        res.redirect(307, `/static/${staticFile}`);
         return;
       }
 
       if (!streamUrl) {
-        res.status(302).redirect(`/static/${StaticFiles.DOWNLOADING}`);
+        res.redirect(307, `/static/${StaticFiles.DOWNLOADING}`);
         return;
       }
 
-      res.status(307).redirect(streamUrl);
+      res.redirect(307, streamUrl);
     } catch (error: any) {
-      if (error instanceof APIError) {
+      if (error instanceof APIError || error instanceof ZodError) {
         next(error);
-      } else if (error instanceof ZodError) {
-        next(
-          new APIError(
-            constants.ErrorCode.BAD_REQUEST,
-            undefined,
-            formatZodError(error)
-          )
-        );
       } else {
         logger.error(
           `Got unexpected error during debrid resolve: ${error.message}`
