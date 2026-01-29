@@ -836,6 +836,27 @@ export abstract class StreamExpressionEngine {
       );
     };
 
+    this.parser.functions.seasonPack = function (
+      streams: ParsedStream[],
+      mode: 'seasonPack' | 'onlySeasons' = 'onlySeasons'
+    ) {
+      if (!Array.isArray(streams) || streams.some((stream) => !stream.type)) {
+        throw new Error('Your streams input must be an array of streams');
+      } else if (mode !== 'seasonPack' && mode !== 'onlySeasons') {
+        throw new Error("Mode must be either 'seasonPack' or 'onlySeasons'");
+      }
+
+      return streams.filter((stream) =>
+        mode === 'seasonPack'
+          ? stream.parsedFile?.seasonPack
+          : // when there are only seasons and no episodes
+            stream.parsedFile?.seasons &&
+            stream.parsedFile?.seasons.length > 0 &&
+            (!stream.parsedFile.episodes ||
+              !stream.parsedFile?.episodes?.length)
+      );
+    };
+
     this.parser.functions.addon = function (
       streams: ParsedStream[],
       ...addons: string[]
@@ -1159,12 +1180,53 @@ export class GroupConditionEvaluator extends StreamExpressionEngine {
   }
 }
 
+/**
+ * Expression context containing metadata and request information
+ * that can be accessed in stream expressions.
+ */
+export interface ExpressionContext {
+  type?: string;
+  id?: string;
+  isAnime?: boolean;
+  queryType?: string;
+  season?: number;
+  episode?: number;
+  // Metadata fields
+  title?: string;
+  titles?: string[];
+  year?: number;
+  yearEnd?: number;
+  genres?: string[];
+  runtime?: number;
+  absoluteEpisode?: number;
+  originalLanguage?: string;
+  daysSinceRelease?: number; // age in days of the movie / **episode**
+  // Anime entry data
+  anilistId?: number;
+  malId?: number;
+  // SeaDex availability
+  hasSeaDex?: boolean;
+}
+
 export class StreamSelector extends StreamExpressionEngine {
-  private queryType: string;
-  constructor(queryType: string) {
+  constructor(context: ExpressionContext) {
     super();
-    this.queryType = queryType;
-    this.parser.consts.queryType = queryType;
+
+    // we need to ensure these are always defined to a safe default
+    // because otherwise the expression parser may throw errors
+    this.parser.consts.queryType = context.queryType ?? '';
+    this.parser.consts.isAnime = context.isAnime ?? false;
+    this.parser.consts.season = context.season ?? -1;
+    this.parser.consts.episode = context.episode ?? -1;
+    this.parser.consts.genres = context.genres ?? [];
+    this.parser.consts.title = context.title ?? '';
+    this.parser.consts.year = context.year ?? 0;
+    this.parser.consts.yearEnd = context.yearEnd ?? 0;
+    this.parser.consts.daysSinceRelease = context.daysSinceRelease ?? -1;
+    this.parser.consts.runtime = context.runtime ?? 0;
+    this.parser.consts.absoluteEpisode = context.absoluteEpisode ?? -1;
+    this.parser.consts.originalLanguage = context.originalLanguage ?? '';
+    this.parser.consts.hasSeaDex = context.hasSeaDex ?? false;
   }
 
   async select(
@@ -1195,7 +1257,7 @@ export class StreamSelector extends StreamExpressionEngine {
   }
 
   static async testSelect(condition: string): Promise<ParsedStream[]> {
-    const parser = new StreamSelector('movie');
+    const parser = new StreamSelector({ queryType: 'movie' });
     const streams = [
       parser.createTestStream({ type: 'debrid' }),
       parser.createTestStream({ type: 'debrid' }),

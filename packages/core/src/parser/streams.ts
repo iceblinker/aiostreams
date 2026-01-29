@@ -513,16 +513,11 @@ class StreamParser {
 
     let seasonPack = folderParsed?.seasonPack || fileParsed?.seasonPack;
     let episodes = arrayFallback(fileParsed?.episodes, folderParsed?.episodes);
-    let seasons = arrayFallback(
-      fileParsed?.seasons,
-      folderParsed?.seasons,
-      fileParsed?.volumes,
-      folderParsed?.volumes
-    );
+    let seasons = arrayFallback(fileParsed?.seasons, folderParsed?.seasons);
 
     // Detect season pack based on folder size being significantly larger than file size
     if (
-      seasonPack === undefined &&
+      !seasonPack &&
       episodes &&
       episodes.length > 0 && // to handle movie folders
       parsedStream.folderSize &&
@@ -532,7 +527,7 @@ class StreamParser {
       seasonPack = true;
     }
     // Detect season pack when more than 5 episodes are present
-    if (seasonPack === undefined && episodes && episodes.length > 5) {
+    if (!seasonPack && episodes && episodes.length > 5) {
       seasonPack = true;
     }
     return {
@@ -575,7 +570,7 @@ class StreamParser {
         arrayMerge(folderParsed?.languages, fileParsed?.languages),
         this.getLanguages(stream, parsedStream)
       ),
-      seasonPack: folderParsed?.seasonPack || fileParsed?.seasonPack,
+      seasonPack,
     };
   }
 
