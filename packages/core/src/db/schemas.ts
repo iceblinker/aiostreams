@@ -443,6 +443,14 @@ export const UserDataSchema = z.object({
   includedStreamExpressions: z
     .array(z.string().min(1).max(Env.MAX_SEL_LENGTH))
     .optional(),
+  rankedStreamExpressions: z
+    .array(
+      z.object({
+        expression: z.string().min(1).max(Env.MAX_SEL_LENGTH),
+        score: z.number().min(-1_000_000).max(1_000_000),
+      })
+    )
+    .optional(),
   // disableGroups: z.boolean().optional(),
   // groups: z
   //   .array(
@@ -560,7 +568,9 @@ export const UserDataSchema = z.object({
     })
     .optional(),
   precacheNextEpisode: z.boolean().optional(),
+  /** @deprecated Use precacheCondition instead */
   alwaysPrecache: z.boolean().optional(),
+  precacheCondition: z.string().optional(),
   services: ServiceList.optional(),
   presets: PresetList,
   catalogModifications: z.array(CatalogModification).optional(),
@@ -786,6 +796,7 @@ export const ParsedStreamSchema = z.object({
     .optional(),
   keywordMatched: z.boolean().optional(),
   streamExpressionMatched: z.number().optional(),
+  streamExpressionScore: z.number().optional(),
   size: z.number().optional(),
   folderSize: z.number().optional(),
   type: StreamTypes,

@@ -27,6 +27,7 @@ import { z, ZodError } from 'zod';
 import {
   ExitConditionEvaluator,
   GroupConditionEvaluator,
+  PrecacheConditionEvaluator,
   StreamSelector,
 } from '../parser/streamExpression.js';
 import { createLogger } from './logger.js';
@@ -309,6 +310,10 @@ export async function validateConfig(
       config.includedStreamExpressions,
       Env.MAX_STREAM_EXPRESSION_FILTERS,
     ],
+    'ranked stream expressions': [
+      config.rankedStreamExpressions,
+      Env.MAX_STREAM_EXPRESSION_FILTERS,
+    ],
     'excluded keywords': [config.excludedKeywords, Env.MAX_KEYWORD_FILTERS],
     'included keywords': [config.includedKeywords, Env.MAX_KEYWORD_FILTERS],
     'required keywords': [config.requiredKeywords, Env.MAX_KEYWORD_FILTERS],
@@ -386,6 +391,7 @@ export async function validateConfig(
     ...(config.requiredStreamExpressions ?? []),
     ...(config.preferredStreamExpressions ?? []),
     ...(config.includedStreamExpressions ?? []),
+    ...(config.rankedStreamExpressions?.map((r) => r.expression) ?? []),
   ];
 
   for (const expression of streamExpressions) {
@@ -393,6 +399,15 @@ export async function validateConfig(
       await StreamSelector.testSelect(expression);
     } catch (error) {
       throw new Error(`Invalid stream expression: ${expression}: ${error}`);
+    }
+  }
+
+  // validate precache condition
+  if (config.precacheCondition) {
+    try {
+      await PrecacheConditionEvaluator.testEvaluate(config.precacheCondition);
+    } catch (error) {
+      throw new Error(`Invalid precache condition: ${error}`);
     }
   }
 
@@ -680,6 +695,15 @@ export function applyMigrations(config: any): UserData {
       delete mod.rpdb;
     }
   }
+
+  // migrate alwaysPrecache to precacheCondition
+  if (config.precacheCondition === undefined && config.precacheNextEpisode) {
+    config.precacheCondition =
+      config.alwaysPrecache === true
+        ? 'true'
+        : constants.DEFAULT_PRECACHE_CONDITION;
+  }
+  delete config.alwaysPrecache;
 
   return config;
 }
