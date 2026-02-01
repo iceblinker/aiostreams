@@ -1,0 +1,3 @@
+﻿c8add1d8 fix(frontend): show changes for ranked sel + future proofing (#668)
+bbed45d4 feat: Add hasNextEpisode and dasUntilNextEpisode SEL constants (#670)
+bddd417b fix: Move when bitrate is calculated (#672)
