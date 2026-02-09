@@ -39,9 +39,11 @@ const logger = createLogger('torbox-search');
 export interface TitleMetadata {
   titles: string[];
   year?: number;
+  seasonYear?: number;
   season?: number;
   episode?: number;
   absoluteEpisode?: number;
+  relativeAbsoluteEpisode?: number;
 }
 
 abstract class SourceHandler {
@@ -96,6 +98,7 @@ abstract class SourceHandler {
       ? torrentOrNzb.type === 'torrent'
         ? {
             type: 'torrent',
+            downloadUrl: torrentOrNzb.downloadUrl,
             hash: torrentOrNzb.hash,
             private: torrentOrNzb.private,
             sources: torrentOrNzb.sources,
@@ -148,8 +151,7 @@ abstract class SourceHandler {
             encryptedStoreAuth!,
             metadataId!,
             fileInfo!,
-            torrentOrNzb.title,
-            torrentOrNzb.file.name
+            torrentOrNzb.file.name ?? torrentOrNzb.title
           )
         : undefined,
       name,
@@ -345,7 +347,6 @@ export class TorrentSourceHandler extends SourceHandler {
         return {
           ...torrent,
           type: 'torrent',
-          private: false,
         };
       }),
       this.services,

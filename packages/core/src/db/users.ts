@@ -205,6 +205,7 @@ export class UserRepository {
       decryptedConfig.trusted =
         Env.TRUSTED_UUIDS?.split(',').some((u) => new RegExp(u).test(uuid)) ??
         false;
+      decryptedConfig.uuid = uuid;
       decryptedConfig.ip = undefined;
       logger.info(`Retrieved configuration for user ${uuid}`);
       const finalConfig = applyMigrations(decryptedConfig);

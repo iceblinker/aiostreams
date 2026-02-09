@@ -10,12 +10,14 @@ import {
   logStartupInfo,
   logStartupFooter,
   Cache,
-  FeatureControl,
+  RegexAccess,
+  SelAccess,
   AnimeDatabase,
   ProwlarrAddon,
   TemplateManager,
   maskSensitiveInfo,
   constants,
+  SeaDexDataset,
 } from '@aiostreams/core';
 import { randomBytes } from 'crypto';
 
@@ -52,6 +54,12 @@ async function initialiseAnimeDatabase() {
   } catch (error) {
     logger.error('Failed to initialise AnimeDatabase:', error);
   }
+}
+
+async function initialiseSeaDexDataset() {
+  try {
+    await SeaDexDataset.getInstance().initialise();
+  } catch {}
 }
 
 async function initialiseProwlarr() {
@@ -93,7 +101,9 @@ async function start() {
     await initialiseDatabase();
     await initialiseRedis();
     initialiseAnimeDatabase();
-    FeatureControl.initialise();
+    initialiseSeaDexDataset();
+    RegexAccess.initialise();
+    SelAccess.initialise();
     await initialiseProwlarr();
     if (Env.PRUNE_MAX_DAYS >= 0) {
       startAutoPrune();
@@ -117,7 +127,8 @@ async function start() {
 
 async function shutdown() {
   await Cache.close();
-  FeatureControl.cleanup();
+  RegexAccess.cleanup();
+  SelAccess.cleanup();
   await DB.getInstance().close();
 }
 

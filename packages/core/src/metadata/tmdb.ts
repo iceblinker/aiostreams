@@ -128,6 +128,7 @@ const TVEpisodeDetailsSchema = z.object({
   overview: z.string().optional(),
   season_number: z.number(),
   still_path: z.string().nullable().optional(),
+  runtime: z.number().nullable().optional(),
 });
 
 const IdTypeMap: Partial<Record<IdType, TMDBIdType>> = {
@@ -440,11 +441,11 @@ export class TMDBMetadata {
     return data.results.flatMap((result) => result.release_dates);
   }
 
-  public async getEpisodeAirDate(
+  public async getEpisodeDetails(
     tmdbId: number,
     seasonNumber: number,
     episodeNumber: number
-  ): Promise<string | undefined> {
+  ): Promise<{ airDate?: string; runtime?: number } | undefined> {
     const url = new URL(
       API_BASE_URL +
         `/tv/${tmdbId}/season/${seasonNumber}/episode/${episodeNumber}`
@@ -461,7 +462,48 @@ export class TMDBMetadata {
     }
     const json = await response.json();
     const episodeData = TVEpisodeDetailsSchema.parse(json);
-    return episodeData.air_date ?? undefined;
+    return {
+      airDate: episodeData.air_date ?? undefined,
+      runtime: episodeData.runtime ?? undefined,
+    };
+  }
+
+  public async getNextEpisodeAirDate(
+    tmdbId: number,
+    currentSeason: number,
+    currentEpisode: number,
+    seasons?: Array<{ season_number: number; episode_count: number }>
+  ): Promise<string | undefined> {
+    if (!seasons || seasons.length === 0) {
+      return undefined;
+    }
+
+    const currentSeasonData = seasons.find(
+      (s) => s.season_number === currentSeason
+    );
+    if (!currentSeasonData) {
+      return undefined;
+    }
+
+    let nextSeason = currentSeason;
+    let nextEpisode = currentEpisode + 1;
+
+    if (nextEpisode > currentSeasonData.episode_count) {
+      const nextSeasonData = seasons
+        .filter((s) => s.season_number > currentSeason)
+        .sort((a, b) => a.season_number - b.season_number)[0];
+
+      if (!nextSeasonData || nextSeasonData.episode_count === 0) {
+        return undefined;
+      }
+
+      nextSeason = nextSeasonData.season_number;
+      nextEpisode = 1;
+    }
+
+    return this.getEpisodeDetails(tmdbId, nextSeason, nextEpisode).then(
+      (details) => details?.airDate
+    );
   }
 
   public async validateAuthorisation() {

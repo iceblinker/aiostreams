@@ -1,7 +1,7 @@
 import { ParsedStream, UserData } from '../db/schemas.js';
 import {
   createLogger,
-  FeatureControl,
+  RegexAccess,
   getTimeTakenSincePoint,
   constants,
   compileRegex,
@@ -9,7 +9,10 @@ import {
   safeRegexTest,
 } from '../utils/index.js';
 import { LANGUAGES, StreamType } from '../utils/constants.js';
-import { StreamSelector } from '../parser/streamExpression.js';
+import {
+  StreamSelector,
+  extractNamesFromExpression,
+} from '../parser/streamExpression.js';
 import StreamUtils, { shouldPassthroughStage } from './utils.js';
 import {
   normaliseTitle,
@@ -56,6 +59,8 @@ export interface FilterStatistics {
     requiredAudioChannel: Reason;
     excludedLanguage: Reason;
     requiredLanguage: Reason;
+    excludedReleaseGroup: Reason;
+    requiredReleaseGroup: Reason;
     excludedCached: Reason;
     excludedUncached: Reason;
     excludedRegex: Reason;
@@ -81,6 +86,7 @@ export interface FilterStatistics {
     audioChannel: Reason;
     language: Reason;
     streamType: Reason;
+    releaseGroup: Reason;
     size: Reason;
     seeder: Reason;
     age: Reason;
@@ -119,6 +125,8 @@ class StreamFilterer {
         requiredAudioChannel: { total: 0, details: {} },
         excludedLanguage: { total: 0, details: {} },
         requiredLanguage: { total: 0, details: {} },
+        excludedReleaseGroup: { total: 0, details: {} },
+        requiredReleaseGroup: { total: 0, details: {} },
         excludedCached: { total: 0, details: {} },
         excludedUncached: { total: 0, details: {} },
         excludedRegex: { total: 0, details: {} },
@@ -144,6 +152,7 @@ class StreamFilterer {
         audioChannel: { total: 0, details: {} },
         language: { total: 0, details: {} },
         streamType: { total: 0, details: {} },
+        releaseGroup: { total: 0, details: {} },
         size: { total: 0, details: {} },
         seeder: { total: 0, details: {} },
         age: { total: 0, details: {} },
@@ -257,10 +266,13 @@ class StreamFilterer {
     const { type, id, parsedId, isAnime } = context;
 
     const start = Date.now();
-    const isRegexAllowed = await FeatureControl.isRegexAllowed(this.userData, [
+    const isRegexAllowed = await RegexAccess.isRegexAllowed(this.userData, [
       ...(this.userData.excludedRegexPatterns ?? []),
       ...(this.userData.requiredRegexPatterns ?? []),
       ...(this.userData.includedRegexPatterns ?? []),
+      ...(this.userData.preferredRegexPatterns ?? []).map(
+        (regex) => regex.pattern
+      ),
     ]);
 
     // Get metadata from context (already fetched in parallel with addon requests)
@@ -273,6 +285,25 @@ class StreamFilterer {
     let originalLanguage = requestedMetadata?.originalLanguage
       ? iso6391ToLanguage(requestedMetadata.originalLanguage)
       : undefined;
+
+    const episodeRuntime = await context.getEpisodeRuntime();
+    const runtimeToUse =
+      episodeRuntime ||
+      (requestedMetadata?.runtime ? requestedMetadata.runtime : undefined);
+
+    if (episodeRuntime) {
+      logger.debug(`Using episode runtime: ${episodeRuntime} minutes`, {
+        id,
+        episode: `${parsedId?.season}:${parsedId?.episode}`,
+      });
+    } else if (requestedMetadata?.runtime) {
+      logger.debug(
+        `Using series average runtime: ${requestedMetadata.runtime} minutes`,
+        {
+          id,
+        }
+      );
+    }
 
     let yearWithinTitle: string | undefined;
     let yearWithinTitleRegex: RegExp | undefined;
@@ -305,7 +336,7 @@ class StreamFilterer {
 
         if (
           (stream.bitrate === undefined || !Number.isFinite(stream.bitrate)) &&
-          requestedMetadata?.runtime &&
+          runtimeToUse &&
           stream.size &&
           (!isFolderSize || type === 'series') // only calculate for folder sizes if it's a series
         ) {
@@ -328,7 +359,7 @@ class StreamFilterer {
             let hasUnknownSeasons = false;
 
             for (const season of stream.parsedFile?.seasons || []) {
-              const seasonData = requestedMetadata.seasons?.find(
+              const seasonData = requestedMetadata?.seasons?.find(
                 (s) => s.season_number === season
               );
 
@@ -360,10 +391,8 @@ class StreamFilterer {
             }
           }
 
-          if (doBitrateCalculation) {
-            stream.bitrate = Math.round(
-              (finalSize * 8) / (requestedMetadata.runtime * 60)
-            );
+          if (doBitrateCalculation && runtimeToUse) {
+            stream.bitrate = Math.round((finalSize * 8) / (runtimeToUse * 60));
           }
         }
       });
@@ -832,6 +861,15 @@ class StreamFilterer {
           )
         ) {
           // allow if absolute episode matches AND season is 1
+        } else if (
+          seasons[0] === 1 &&
+          stream.parsedFile?.episodes?.length &&
+          requestedMetadata?.relativeAbsoluteEpisode &&
+          stream.parsedFile?.episodes?.includes(
+            requestedMetadata.relativeAbsoluteEpisode
+          )
+        ) {
+          // allow if relative absolute episode (AniDB episode) matches AND season is 1
         } else {
           return false;
         }
@@ -850,6 +888,14 @@ class StreamFilterer {
           (!seasons?.length || seasons[0] === 1)
         ) {
           // allow if absolute episode matches AND (no season OR season is 1)
+        } else if (
+          requestedMetadata?.relativeAbsoluteEpisode &&
+          stream.parsedFile?.episodes?.includes(
+            requestedMetadata.relativeAbsoluteEpisode
+          ) &&
+          (!seasons?.length || seasons[0] === 1)
+        ) {
+          // allow if relative absolute episode (AniDB episode) matches AND (no season OR season is 1)
         } else {
           return false;
         }
@@ -1108,7 +1154,6 @@ class StreamFilterer {
           file?.languages.includes(originalLanguage)
         ) {
           file.languages.push('Original');
-          file.languages.push(`Original-${originalLanguage}`);
         }
       }
       // Temporarily add in our fake visual tags used for sorting/filtering
@@ -1240,6 +1285,22 @@ class StreamFilterer {
           (file?.languages.length ? file.languages : ['Unknown']).includes(lang)
         );
         this.incrementIncludedReason('language', lang!);
+        return true;
+      }
+
+      if (
+        this.userData.includedReleaseGroups?.some(
+          (group) =>
+            (file?.releaseGroup || 'Unknown').toLowerCase() ===
+            group.toLowerCase()
+        )
+      ) {
+        const group = this.userData.includedReleaseGroups.find(
+          (group) =>
+            (file?.releaseGroup || 'Unknown').toLowerCase() ===
+            group.toLowerCase()
+        );
+        this.incrementIncludedReason('releaseGroup', group!);
         return true;
       }
 
@@ -1549,6 +1610,37 @@ class StreamFilterer {
         this.incrementRemovalReason(
           'requiredLanguage',
           file?.languages.length ? file.languages.join(', ') : 'Unknown'
+        );
+        return false;
+      }
+
+      // release group
+      if (
+        this.userData.excludedReleaseGroups?.some(
+          (group) =>
+            (file?.releaseGroup || 'Unknown').toLowerCase() ===
+            group.toLowerCase()
+        )
+      ) {
+        this.incrementRemovalReason(
+          'excludedReleaseGroup',
+          file?.releaseGroup || 'Unknown'
+        );
+        return false;
+      }
+
+      if (
+        this.userData.requiredReleaseGroups &&
+        this.userData.requiredReleaseGroups.length > 0 &&
+        !this.userData.requiredReleaseGroups.some(
+          (group) =>
+            (file?.releaseGroup || 'Unknown').toLowerCase() ===
+            group.toLowerCase()
+        )
+      ) {
+        this.incrementRemovalReason(
+          'requiredReleaseGroup',
+          file?.releaseGroup || 'Unknown'
         );
         return false;
       }
@@ -1949,12 +2041,17 @@ class StreamFilterer {
     );
     return finalStreams;
   }
-  private truncateCondition(condition: string): string {
-    const maxLength = 50;
-    if (condition.length > maxLength) {
-      return condition.substring(0, maxLength - 3) + '...';
+  private getDisplayCondition(expression: string): string {
+    const names = extractNamesFromExpression(expression);
+    if (names && names.length > 0) {
+      return names.join(', ');
     }
-    return condition;
+    // Fallback to truncation if no names found
+    const maxLength = 50;
+    if (expression.length > maxLength) {
+      return expression.substring(0, maxLength - 3) + '...';
+    }
+    return expression;
   }
 
   public async applyIncludedStreamExpressions(
@@ -1974,7 +2071,7 @@ class StreamFilterer {
       const selectedStreams = await selector.select(streams, expression);
       this.filterStatistics.included.streamExpression.total +=
         selectedStreams.length;
-      const displayCondition = this.truncateCondition(expression);
+      const displayCondition = this.getDisplayCondition(expression);
       this.filterStatistics.included.streamExpression.details[
         displayCondition
       ] =
@@ -2028,7 +2125,7 @@ class StreamFilterer {
           if (selectedStreams.length > 0) {
             this.filterStatistics.removed.excludedFilterCondition.total +=
               selectedStreams.length;
-            const displayCondition = this.truncateCondition(expression);
+            const displayCondition = this.getDisplayCondition(expression);
             this.filterStatistics.removed.excludedFilterCondition.details[
               displayCondition
             ] =
@@ -2074,7 +2171,7 @@ class StreamFilterer {
           if (selectedStreams.length > 0) {
             this.filterStatistics.removed.requiredFilterCondition.total +=
               selectedStreams.length;
-            const displayCondition = this.truncateCondition(expression);
+            const displayCondition = this.getDisplayCondition(expression);
             this.filterStatistics.removed.requiredFilterCondition.details[
               displayCondition
             ] =

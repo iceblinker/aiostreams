@@ -390,6 +390,20 @@ export const UserDataSchema = z.object({
   includedRegexPatterns: z.array(z.string().min(1)).optional(),
   requiredRegexPatterns: z.array(z.string().min(1)).optional(),
   preferredRegexPatterns: z.array(NameableRegex).optional(),
+  syncedPreferredRegexUrls: z.array(z.string().url()).optional(),
+  syncedExcludedRegexUrls: z.array(z.string().url()).optional(),
+  syncedIncludedRegexUrls: z.array(z.string().url()).optional(),
+  syncedRequiredRegexUrls: z.array(z.string().url()).optional(),
+  syncedRankedRegexUrls: z.array(z.string().url()).optional(),
+  syncedPreferredStreamExpressionUrls: z.array(z.string().url()).optional(),
+  syncedExcludedStreamExpressionUrls: z.array(z.string().url()).optional(),
+  syncedIncludedStreamExpressionUrls: z.array(z.string().url()).optional(),
+  syncedRequiredStreamExpressionUrls: z.array(z.string().url()).optional(),
+  syncedRankedStreamExpressionUrls: z.array(z.string().url()).optional(),
+  excludedReleaseGroups: z.array(z.string().min(1)).optional(),
+  includedReleaseGroups: z.array(z.string().min(1)).optional(),
+  requiredReleaseGroups: z.array(z.string().min(1)).optional(),
+  preferredReleaseGroups: z.array(z.string().min(1)).optional(),
   requiredKeywords: z.array(z.string().min(1)).optional(),
   includedKeywords: z.array(z.string().min(1)).optional(),
   excludedKeywords: z.array(z.string().min(1)).optional(),
@@ -448,6 +462,37 @@ export const UserDataSchema = z.object({
       z.object({
         expression: z.string().min(1).max(Env.MAX_SEL_LENGTH),
         score: z.number().min(-1_000_000).max(1_000_000),
+        enabled: z.boolean().default(true),
+      })
+    )
+    .optional(),
+  rankedRegexPatterns: z
+    .array(
+      z.object({
+        pattern: z.string().min(1),
+        name: z.string().optional(),
+        score: z.number().min(-1_000_000).max(1_000_000),
+      })
+    )
+    .optional(),
+  regexOverrides: z
+    .array(
+      z.object({
+        pattern: z.string().min(1),
+        name: z.string().optional(),
+        score: z.number().min(-1_000_000).max(1_000_000).optional(),
+        originalName: z.string().optional(),
+        disabled: z.boolean().optional(),
+      })
+    )
+    .optional(),
+  selOverrides: z
+    .array(
+      z.object({
+        expression: z.string().min(1),
+        score: z.number().min(-1_000_000).max(1_000_000).optional(),
+        exprNames: z.array(z.string()).optional(),
+        disabled: z.boolean().optional(),
       })
     )
     .optional(),
@@ -568,9 +613,11 @@ export const UserDataSchema = z.object({
     })
     .optional(),
   precacheNextEpisode: z.boolean().optional(),
-  /** @deprecated Use precacheCondition instead */
+  /** @deprecated Use precacheSelector instead */
   alwaysPrecache: z.boolean().optional(),
+  /** @deprecated Use precacheSelector instead */
   precacheCondition: z.string().optional(),
+  precacheSelector: z.string().optional(),
   services: ServiceList.optional(),
   presets: PresetList,
   catalogModifications: z.array(CatalogModification).optional(),
@@ -794,8 +841,19 @@ export const ParsedStreamSchema = z.object({
       index: z.number(),
     })
     .optional(),
+  rankedRegexesMatched: z.array(z.string()).optional(),
+  regexScore: z.number().optional(),
   keywordMatched: z.boolean().optional(),
-  streamExpressionMatched: z.number().optional(),
+  streamExpressionMatched: z
+    .object({
+      name: z.string().optional(),
+      index: z.number(),
+    })
+    .optional(),
+
+  rankedStreamExpressionsMatched: z
+    .array(z.string().min(1).optional())
+    .optional(),
   streamExpressionScore: z.number().optional(),
   size: z.number().optional(),
   folderSize: z.number().optional(),
@@ -1015,8 +1073,20 @@ export const AIOStream = StreamSchema.extend({
           index: z.number(),
         })
         .optional(),
+      rankedRegexesMatched: z.array(z.string()).optional(),
+      regexScore: z.number().optional(),
       keywordMatched: z.boolean().optional(),
-      streamExpressionMatched: z.number().optional(),
+      streamExpressionMatched: z
+        .object({
+          name: z.string().optional(),
+          index: z.number(),
+        })
+        .or(z.number())
+        .optional(),
+      rankedStreamExpressionsMatched: z
+        .array(z.string().min(1).optional())
+        .optional(),
+      streamExpressionScore: z.number().optional(),
       seadex: z
         .object({
           isBest: z.boolean(),
@@ -1091,6 +1161,8 @@ const StatusResponseSchema = z.object({
     alternateDesign: z.boolean(),
     protected: z.boolean(),
     regexFilterAccess: z.enum(['none', 'trusted', 'all']),
+    selSyncAccess: z.enum(['all', 'trusted']),
+    whitelistedSelUrls: z.array(z.string()).optional(),
     allowedRegexPatterns: z
       .object({
         patterns: z.array(z.string()),
@@ -1138,6 +1210,9 @@ const StatusResponseSchema = z.object({
     ),
     limits: z.object({
       maxMergedCatalogSources: z.number(),
+      maxStreamExpressions: z.number(),
+      maxStreamExpressionsTotalCharacters: z.number(),
+      maxAddons: z.number(),
     }),
   }),
 });
@@ -1181,7 +1256,7 @@ export const TemplateSchema = z.object({
     setToSaveInstallMenu: z.boolean().optional().default(true), // whether to set the menu to save-install after importing the template
     sourceUrl: z.url().optional(), // URL from which the template was imported (for auto-updates)
   }),
-  config: UserDataSchema, // config of the template
+  config: UserDataSchema.partial(),
 });
 
 export type Template = z.infer<typeof TemplateSchema>;

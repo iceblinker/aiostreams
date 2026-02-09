@@ -744,9 +744,13 @@ export const Env = cleanEnv(process.env, {
     default: 30,
     desc: 'Max number of keyword filters',
   }),
-  MAX_STREAM_EXPRESSION_FILTERS: num({
-    default: 30,
-    desc: 'Max number of condition filters',
+  MAX_STREAM_EXPRESSIONS: num({
+    default: 200,
+    desc: 'Max total number of stream expressions across all filter types (ranked, preferred, excluded, required, included)',
+  }),
+  MAX_STREAM_EXPRESSIONS_TOTAL_CHARACTERS: num({
+    default: 50000,
+    desc: 'Max total character count across all stream expressions',
   }),
   MAX_GROUPS: num({
     default: 20,
@@ -767,19 +771,45 @@ export const Env = cleanEnv(process.env, {
 
   ALLOWED_REGEX_PATTERNS: json<string[]>({
     default: [],
-    desc: 'Allowed regex patterns',
+    desc: '[DEPRECATED: use WHITELISTED_REGEX_PATTERNS] Allowed regex patterns',
   }),
   ALLOWED_REGEX_PATTERNS_URLS: json<string[]>({
     default: undefined,
-    desc: 'Comma separated list of allowed regex patterns URLs',
+    desc: '[DEPRECATED: use WHITELISTED_REGEX_PATTERNS_URLS] Comma separated list of allowed regex patterns URLs',
   }),
   ALLOWED_REGEX_PATTERNS_URLS_REFRESH_INTERVAL: num({
     default: 86400000,
-    desc: 'Interval for refreshing regex patterns from URLs in milliseconds',
+    desc: '[DEPRECATED: use WHITELISTED_SYNC_REFRESH_INTERVAL] Interval for refreshing regex patterns from URLs in milliseconds',
   }),
   ALLOWED_REGEX_PATTERNS_DESCRIPTION: str({
     default: undefined,
-    desc: 'Description of the allowed regex patterns',
+    desc: '[DEPRECATED: use WHITELISTED_REGEX_PATTERNS_DESCRIPTION] Description of the allowed regex patterns',
+  }),
+
+  WHITELISTED_REGEX_PATTERNS: json<string[]>({
+    default: undefined,
+    desc: 'Whitelisted regex patterns (JSON array of strings). Falls back to ALLOWED_REGEX_PATTERNS.',
+  }),
+  WHITELISTED_REGEX_PATTERNS_URLS: json<string[]>({
+    default: undefined,
+    desc: 'Whitelisted regex pattern sync URLs (JSON array of URL strings). Falls back to ALLOWED_REGEX_PATTERNS_URLS.',
+  }),
+  WHITELISTED_REGEX_PATTERNS_DESCRIPTION: str({
+    default: undefined,
+    desc: 'Description of the whitelisted regex patterns. Falls back to ALLOWED_REGEX_PATTERNS_DESCRIPTION.',
+  }),
+  WHITELISTED_SYNC_REFRESH_INTERVAL: num({
+    default: undefined,
+    desc: 'Refresh interval for synced URLs (regex and SEL) in seconds. Falls back to ALLOWED_REGEX_PATTERNS_URLS_REFRESH_INTERVAL (converted from ms to s). Default: 86400 (24h).',
+  }),
+  WHITELISTED_SEL_URLS: json<string[]>({
+    default: undefined,
+    desc: 'Whitelisted stream expression (SEL) sync URLs (JSON array of URL strings). Non-trusted users can only sync from these URLs.',
+  }),
+  SEL_SYNC_ACCESS: str({
+    default: 'trusted',
+    desc: 'Who can use SEL sync URLs. "all" = anyone can sync from any URL, "trusted" = only trusted users can sync from any URL (non-trusted users limited to WHITELISTED_SEL_URLS)',
+    choices: ['all', 'trusted'],
   }),
 
   MAX_TIMEOUT: num({
@@ -1848,6 +1878,10 @@ export const Env = cleanEnv(process.env, {
     default: 60 * 5, // 5 minutes
     desc: 'Builtin Debrid NZB list cache TTL',
   }),
+  BUILTIN_DEBRID_USE_TORRENT_DOWNLOAD_URL: bool({
+    default: true,
+    desc: 'Use torrent URLs instead of magnets for better private tracker integration',
+  }),
   BUILTIN_DEBRID_METADATA_STORE: str({
     choices: ['redis', 'sql', 'memory'],
     default: undefined,
@@ -1997,9 +2031,9 @@ export const Env = cleanEnv(process.env, {
     default: 'https://releases.moe',
     desc: 'Builtin SeaDex URL',
   }),
-  BUILTIN_SEADEX_ENTRY_CACHE_TTL: num({
+  BUILTIN_SEADEX_DATASET_REFRESH_INTERVAL: num({
     default: 24 * 60 * 60, // 24 hours
-    desc: 'Builtin SeaDex entry cache TTL',
+    desc: 'Builtin SeaDex dataset refresh interval in seconds',
   }),
 
   BUILTIN_BITMAGNET_URL: url({
@@ -2113,6 +2147,28 @@ export const Env = cleanEnv(process.env, {
     default: 5,
     desc: 'The maximum number of pages to fetch.',
   }),
+
+  BUILTIN_EZTV_URL: url({
+    default: 'https://eztvx.to',
+    desc: 'Builtin EZTV API URL',
+  }),
+  BUILTIN_DEFAULT_EZTV_TIMEOUT: num({
+    default: undefined,
+    desc: 'Builtin EZTV timeout',
+  }),
+  BUILTIN_EZTV_SEARCH_TIMEOUT: num({
+    default: 30000, // 30 seconds
+    desc: 'Builtin EZTV Search timeout',
+  }),
+  BUILTIN_EZTV_SEARCH_CACHE_TTL: num({
+    default: 7 * 24 * 60 * 60, // 7 days
+    desc: 'Builtin EZTV Search cache TTL',
+  }),
+  BUILTIN_EZTV_MAX_PAGES: num({
+    default: 5,
+    desc: 'Maximum number of pages to fetch for EZTV searches',
+  }),
+
   // Rate limiting settings
   DISABLE_RATE_LIMITS: bool({
     default: false,

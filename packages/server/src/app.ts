@@ -13,6 +13,7 @@ import {
   animeApi,
   proxyApi,
   templatesApi,
+  syncApi,
 } from './routes/api/index.js';
 import {
   configure,
@@ -35,6 +36,7 @@ import {
   newznab,
   prowlarr,
   knaben,
+  eztv,
   torrentGalaxy,
   seadex,
   easynews,
@@ -107,6 +109,7 @@ if (Env.ENABLE_SEARCH_API) {
 apiRouter.use('/anime', animeApi);
 apiRouter.use('/proxy', proxyApi);
 apiRouter.use('/templates', templatesApi);
+apiRouter.use('/sync', syncApi);
 app.use(`/api/v${constants.API_VERSION}`, apiRouter);
 
 // Stremio Routes
@@ -156,6 +159,7 @@ builtinsRouter.use('/torznab', torznab);
 builtinsRouter.use('/newznab', newznab);
 builtinsRouter.use('/prowlarr', prowlarr);
 builtinsRouter.use('/knaben', knaben);
+builtinsRouter.use('/eztv', eztv);
 builtinsRouter.use('/torrent-galaxy', torrentGalaxy);
 builtinsRouter.use('/seadex', seadex);
 builtinsRouter.use('/easynews', easynews);

@@ -291,9 +291,13 @@ class StreamSorter {
             -(stream.regexMatched ? stream.regexMatched.index : Infinity)
           );
         case 'streamExpressionMatched':
-          return multiplier * -(stream.streamExpressionMatched ?? Infinity);
+          return (
+            multiplier * -(stream.streamExpressionMatched?.index ?? Infinity)
+          );
         case 'streamExpressionScore':
           return multiplier * (stream.streamExpressionScore ?? 0);
+        case 'regexScore':
+          return multiplier * (stream.regexScore ?? 0);
         case 'keyword':
           return multiplier * (stream.keywordMatched ? 1 : 0);
 
@@ -319,6 +323,16 @@ class StreamSorter {
             return multiplier * 1;
           }
           return multiplier * 0;
+        }
+        case 'releaseGroup': {
+          if (!userData.preferredReleaseGroups?.length) {
+            return 0;
+          }
+          const releaseGroup = stream.parsedFile?.releaseGroup || 'Unknown';
+          const index = userData.preferredReleaseGroups.findIndex(
+            (group) => group.toLowerCase() === releaseGroup.toLowerCase()
+          );
+          return multiplier * -(index === -1 ? Infinity : index);
         }
         default:
           return 0;

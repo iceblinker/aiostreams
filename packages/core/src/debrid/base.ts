@@ -89,6 +89,7 @@ export interface DebridDownload {
   library?: boolean;
   hash?: string;
   name?: string;
+  private?: boolean;
   size?: number;
   status:
     | 'cached'
@@ -106,9 +107,11 @@ export interface DebridDownload {
 const TitleMetadataSchema = z.object({
   titles: z.array(z.string()),
   year: z.number().optional(),
+  seasonYear: z.number().optional(),
   season: z.number().optional(),
   episode: z.number().optional(),
   absoluteEpisode: z.number().optional(),
+  relativeAbsoluteEpisode: z.number().optional(),
 });
 
 const BasePlaybackInfoSchema = z.object({
@@ -120,13 +123,15 @@ const BasePlaybackInfoSchema = z.object({
 
 const BaseFileInfoSchema = z.object({
   index: z.number().optional(),
+  title: z.string().optional(),
   cacheAndPlay: z.boolean().optional(),
   autoRemoveDownloads: z.boolean().optional(),
 });
 
 const TorrentInfoSchema = BaseFileInfoSchema.extend({
+  downloadUrl: z.string().optional(),
   hash: z.string(),
-  private: z.boolean().default(false),
+  private: z.boolean().optional(),
   sources: z.array(z.string()),
   type: z.literal('torrent'),
 });
@@ -176,6 +181,7 @@ export interface DebridService {
   checkMagnets(magnets: string[], sid?: string): Promise<DebridDownload[]>;
   listMagnets(): Promise<DebridDownload[]>;
   addMagnet(magnet: string): Promise<DebridDownload>;
+  addTorrent(torrent: string): Promise<DebridDownload>;
   generateTorrentLink(link: string, clientIp?: string): Promise<string>;
 
   // Usenet specific methods
