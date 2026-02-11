@@ -30,18 +30,16 @@ import {
 // Helpers
 
 /**
- * Extract names from C-style block comments in a SEL expression.
- * Names are comments that don't start with `#`.
+ * Extract ALL names from block comments, including #-prefixed ones.
+ * Used for override tracking to make each expression's name unique.
  */
-function extractNamesFromExpression(expression: string): string[] | undefined {
+function extractAllNamesFromExpression(expression: string): string[] | undefined {
   const regex = /\/\*\s*(.*?)\s*\*\//g;
   const names: string[] = [];
   let match;
   while ((match = regex.exec(expression)) !== null) {
     const content = match[1];
-    if (!content.startsWith('#')) {
-      names.push(content);
-    }
+    names.push(content.startsWith('#') ? content.slice(1).trim() : content);
   }
   return names.length > 0 ? names : undefined;
 }
@@ -162,7 +160,7 @@ export function SyncedPatterns({
 
         // For SEL items, extract names from expression comments
         const extractedNames = isSel
-          ? extractNamesFromExpression(patternStr)
+          ? extractAllNamesFromExpression(patternStr)
           : undefined;
 
         const matchesOverride = (o: any) => {
@@ -525,7 +523,10 @@ export function SyncedPatterns({
           {renderType === 'ranked' && (
             <NumberInput
               label="Custom Score"
-              value={regexEditing?.score ?? 0}
+              value={regexEditing?.score || 0}
+              min={-1_000_000}
+              max={1_000_000}
+              step={50}
               onValueChange={(score) =>
                 setRegexEditing((prev) => (prev ? { ...prev, score } : null))
               }
@@ -556,7 +557,7 @@ export function SyncedPatterns({
                   const entry = {
                     pattern: regexEditing.pattern,
                     name: regexEditing.name || undefined,
-                    score: regexEditing.score,
+                    score: regexEditing.score || 0,
                     originalName: regexEditing.originalName,
                     disabled:
                       regexEditing.disabled ?? existingOverride?.disabled,
@@ -597,7 +598,10 @@ export function SyncedPatterns({
           </p>
           <NumberInput
             label="Custom Score"
-            value={selEditing?.score ?? 0}
+            value={selEditing?.score || 0}
+            min={-1_000_000}
+            max={1_000_000}
+            step={50}
             onValueChange={(score) =>
               setSelEditing((prev) => (prev ? { ...prev, score } : null))
             }
@@ -629,7 +633,7 @@ export function SyncedPatterns({
                     idx >= 0 ? overrides[idx] : undefined;
                   const entry = {
                     expression: selEditing.expression,
-                    score: selEditing.score,
+                    score: selEditing.score || 0,
                     exprNames: selEditing.exprNames,
                     disabled: selEditing.disabled ?? existingOverride?.disabled,
                   };

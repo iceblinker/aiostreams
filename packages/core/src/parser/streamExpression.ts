@@ -1330,14 +1330,15 @@ export class StreamSelector extends StreamExpressionEngine {
  * @returns Array of extracted names, or undefined if none found
  */
 export function extractNamesFromExpression(
-  expression: string
+  expression: string,
+  ignoreHashPrefixed = true
 ): string[] | undefined {
   const regex = /\/\*\s*(.*?)\s*\*\//g;
   const names: string[] = [];
   let match;
   while ((match = regex.exec(expression)) !== null) {
     const content = match[1];
-    if (!content.startsWith('#')) {
+    if (!content.startsWith('#') || !ignoreHashPrefixed) {
       names.push(content);
     }
   }
