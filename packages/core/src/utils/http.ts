@@ -88,7 +88,7 @@ export async function makeRequest(url: string, options: RequestOptions) {
   }
 
   if (urlObj.toString().startsWith(Env.INTERNAL_URL)) {
-    headers.set(INTERNAL_SECRET_HEADER, Env.INTERNAL_SECRET);
+    headers.set(INTERNAL_SECRET_HEADER, Env.INTERNAL_SECRET as string);
   }
 
   let domainUserAgent = domainHasUserAgent(urlObj);
