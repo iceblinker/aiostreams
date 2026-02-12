@@ -99,6 +99,7 @@ async function start() {
     logStartupInfo();
     await initialiseTemplates();
     await initialiseDatabase();
+    await UserRepository.ensureAliasedUsersExist();
     await initialiseRedis();
     initialiseAnimeDatabase();
     initialiseSeaDexDataset();

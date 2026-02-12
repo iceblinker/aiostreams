@@ -26,7 +26,8 @@ const userCache = Cache.getInstance<string, UserData>('user_config', 1000, 'memo
 export class UserRepository {
   static async createUser(
     config: UserData,
-    password: string
+    password: string,
+    forceUuid?: string
   ): Promise<{ uuid: string; encryptedPassword: string }> {
     return txQueue.enqueue(async () => {
       if (password.length < 6) {
@@ -67,7 +68,7 @@ export class UserRepository {
         );
       }
 
-      const uuid = await this.generateUUID();
+      const uuid = forceUuid || (await this.generateUUID());
 
       const { encryptedConfig, salt: configSalt } = await this.encryptConfig(
         validatedConfig,
@@ -109,6 +110,51 @@ export class UserRepository {
         }
       }
     });
+  }
+
+  static async ensureAliasedUsersExist() {
+    if (Env.ALIASED_CONFIGURATIONS.size === 0) {
+      return;
+    }
+    logger.info(
+      `Ensuring ${Env.ALIASED_CONFIGURATIONS.size} aliased users exist...`
+    );
+    for (const [alias, { uuid, password }] of Env.ALIASED_CONFIGURATIONS) {
+      const exists = await this.checkUserExists(uuid);
+      if (!exists) {
+        logger.info(`Creating missing aliased user: ${alias} (${uuid})`);
+        const { success, data: decryptedPassword } = decryptString(password);
+        if (!success || !decryptedPassword) {
+          logger.error(
+            `Failed to decrypt password for aliased user ${alias}. Skipping.`
+          );
+          continue;
+        }
+
+        try {
+          await this.createUser(
+            {
+              addonPassword: Env.ADDON_PASSWORD[0] || '',
+              presets: [],
+              formatter: { id: 'torrentio' },
+              sortCriteria: {
+                global: [
+                  { key: 'quality', direction: 'desc' },
+                  { key: 'seeders', direction: 'desc' },
+                ],
+              },
+            },
+            decryptedPassword,
+            uuid
+          );
+          logger.info(`Successfully created aliased user: ${alias}`);
+        } catch (error) {
+          logger.error(
+            `Failed to create aliased user ${alias}: ${error instanceof Error ? error.message : String(error)}`
+          );
+        }
+      }
+    }
   }
 
   static async checkUserExists(uuid: string): Promise<boolean> {
