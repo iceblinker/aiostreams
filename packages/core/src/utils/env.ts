@@ -48,19 +48,19 @@ try {
   console.error('Error loading metadata.json file', error);
 }
 
-const secretKey = makeValidator((x) => {
+const secretKey = makeValidator((x: string) => {
   if (!/^[0-9a-fA-F]{64}$/.test(x)) {
     throw new EnvError('Secret key must be a 64-character hex string');
   }
   return x;
 });
 
-const commaSeparated = makeExactValidator<string[]>((x) => {
+const commaSeparated = makeExactValidator<string[]>((x: string) => {
   if (x === '') {
     return [];
   }
-  const parsed = x.split(',').map((item) => item.trim());
-  if (parsed.some((item) => item === '')) {
+  const parsed = x.split(',').map((item: string) => item.trim());
+  if (parsed.some((item: string) => item === '')) {
     throw new EnvError('Comma separated values cannot be empty');
   }
   return parsed;
@@ -102,7 +102,7 @@ const httpProxyMap = <T extends string>(choices: readonly T[]) =>
 const removeTrailingSlash = (x: string) =>
   x.endsWith('/') ? x.slice(0, -1) : x;
 
-const urlOrUrlList = makeExactValidator<readonly string[]>((x) => {
+const urlOrUrlList = makeExactValidator<readonly string[]>((x: string) => {
   if (!x) {
     return [];
   }
@@ -119,7 +119,7 @@ const urlOrUrlList = makeExactValidator<readonly string[]>((x) => {
   };
   try {
     const urls = JSON.parse(x);
-    if (!Array.isArray(urls) || urls.some((x) => !validateUrl(x))) {
+    if (!Array.isArray(urls) || urls.some((x: string) => !validateUrl(x))) {
       throw new EnvError(
         'List of URLs must be an array of URLs or a single URL'
       );
@@ -133,7 +133,7 @@ const urlOrUrlList = makeExactValidator<readonly string[]>((x) => {
   }
 });
 
-const url = makeValidator((x) => {
+const url = makeValidator((x: string) => {
   if (x === '') {
     throw new EnvMissingError(`URL cannot be empty`);
   }
@@ -183,7 +183,7 @@ const parseUserAgent = (input: string): string => {
     .replace(/{version}/g, metadata?.version || 'unknown')
     .replace(/{random}/g, new UserAgent(filters).toString());
 };
-const userAgent = makeValidator((x) => {
+const userAgent = makeValidator((x: unknown) => {
   if (typeof x !== 'string') {
     throw new Error('User agent must be a string');
   }
@@ -191,7 +191,7 @@ const userAgent = makeValidator((x) => {
   return parseUserAgent(x);
 });
 
-const userAgentMappings = makeValidator<Map<string, string>>((x) => {
+const userAgentMappings = makeValidator<Map<string, string>>((x: unknown) => {
   if (typeof x !== 'string') {
     throw new EnvError('User agent mappings must be a string');
   }
@@ -225,10 +225,10 @@ const userAgentMappings = makeValidator<Map<string, string>>((x) => {
 });
 
 // comma separated list of alias:uuid
-const aliasedUUIDs = makeExactValidator((x) => {
+const aliasedUUIDs = makeExactValidator((x: string) => {
   try {
     const aliases: Map<string, { uuid: string; password: string }> = new Map();
-    x.split(',').forEach((x) => {
+    x.split(',').forEach((x: string) => {
       const [alias, uuid, password] = x.split(':');
       if (!alias || !uuid || !password) {
         throw new Error('Invalid alias:uuid:password pair');
@@ -249,20 +249,20 @@ const aliasedUUIDs = makeExactValidator((x) => {
   }
 });
 
-const readonly = makeValidator((x) => {
+const readonly = makeValidator((x: unknown) => {
   if (x) {
     throw new EnvError('Readonly environment variable, cannot be set');
   }
   return x;
 });
 
-const proxyAuth = makeValidator((x) => {
+const proxyAuth = makeValidator((x: unknown) => {
   if (typeof x !== 'string') {
     throw new EnvError('Proxy auth must be a string');
   }
   // comma separated list of username:password
   const userMap: Map<string, string> = new Map();
-  x.split(',').forEach((x) => {
+  x.split(',').forEach((x: string) => {
     const [username, password] = x.split(':');
     if (!username || !password) {
       throw new EnvError(
@@ -274,13 +274,13 @@ const proxyAuth = makeValidator((x) => {
   return userMap;
 });
 
-const connectionLimits = makeValidator((x) => {
+const connectionLimits = makeValidator((x: unknown) => {
   if (typeof x !== 'string') {
     throw new EnvError('Connection limits must be a string');
   }
   // comma separated list of username:limit where limit is a number
   const limitMap: Map<string, number> = new Map();
-  x.split(',').forEach((x) => {
+  x.split(',').forEach((x: string) => {
     const [username, limitStr] = x.split(':');
     if (!username || !limitStr) {
       throw new EnvError(
@@ -299,19 +299,22 @@ const connectionLimits = makeValidator((x) => {
   return limitMap;
 });
 
-const boolOrList = makeValidator((x) => {
+const boolOrList = makeValidator((x: unknown) => {
   if (typeof x !== 'string') {
     return undefined;
   }
-  x = x.toLowerCase();
-  if (['true', 'false', '1', '0'].includes(x)) {
-    return x === 'true' || x === '1';
+  const strX = x.toLowerCase();
+  if (['true', 'false', '1', '0'].includes(strX)) {
+    return strX === 'true' || strX === '1';
   }
-  return x.split(',').map((x) => x.trim());
+  return x.split(',').map((item: string) => item.trim());
 });
 
-const urlMappings = makeValidator<Record<string, string>>((x) => {
+const urlMappings = makeValidator<Record<string, string>>((x: unknown) => {
   // json object with string properties
+  if (typeof x !== 'string') {
+    throw new EnvError('URL mappings must be a string (JSON)');
+  }
   const parsed = JSON.parse(x);
   if (typeof parsed !== 'object' || parsed === null) {
     throw new EnvError('URL mappings must be an object');
@@ -325,7 +328,7 @@ const urlMappings = makeValidator<Record<string, string>>((x) => {
     }
     try {
       const keyUrl = new URL(removeTrailingSlash(key));
-      const valueUrl = new URL(removeTrailingSlash(value));
+      const valueUrl = new URL(removeTrailingSlash(value as string));
       mappings[keyUrl.origin] = valueUrl.origin;
     } catch (e) {
       throw new EnvError(
@@ -337,7 +340,7 @@ const urlMappings = makeValidator<Record<string, string>>((x) => {
 });
 
 const cacheTtls = (defaultWildcard: number = 300) =>
-  makeValidator<Record<string, number>>((x) => {
+  makeValidator<Record<string, number>>((x: string) => {
     if (typeof x !== 'string') {
       throw new EnvError('Cache TTLs must be a string');
     }
@@ -356,7 +359,7 @@ const cacheTtls = (defaultWildcard: number = 300) =>
     const ttlMap: Record<string, number> = {};
     let hasWildcard = false;
 
-    x.split(',').forEach((entry) => {
+    x.split(',').forEach((entry: string) => {
       const [key, valueStr] = entry.split(':').map((s) => s.trim());
       if (!key || !valueStr) {
         throw new EnvError(

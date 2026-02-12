@@ -53,9 +53,9 @@ export class ProwlarrAddon extends BaseDebridAddon<ProwlarrAddonConfig> {
     this.preconfiguredInstance =
       Env.BUILTIN_PROWLARR_URL === config.url &&
       Env.BUILTIN_PROWLARR_API_KEY === config.apiKey;
-    this.indexers = config.indexers.map((x) => x.toLowerCase());
-    this.tags = config.tags.map((x) => x.toLowerCase());
-    this.sources = (config.sources ?? []).map((x) => x.toLowerCase());
+    this.indexers = config.indexers.map((x: string) => x.toLowerCase());
+    this.tags = config.tags.map((x: string) => x.toLowerCase());
+    this.sources = (config.sources ?? []).map((x: string) => x.toLowerCase());
     this.api = new ProwlarrApi({
       baseUrl: config.url,
       apiKey: config.apiKey,
@@ -97,7 +97,7 @@ export class ProwlarrAddon extends BaseDebridAddon<ProwlarrAddonConfig> {
             indexer.sortName.toLowerCase(),
             indexer.definitionName.toLowerCase(),
           ].some((x) =>
-            Env.BUILTIN_PROWLARR_INDEXERS?.map((x) => x.toLowerCase()).includes(
+            Env.BUILTIN_PROWLARR_INDEXERS?.map((x: string) => x.toLowerCase()).includes(
               x
             )
           )
@@ -163,7 +163,7 @@ export class ProwlarrAddon extends BaseDebridAddon<ProwlarrAddonConfig> {
         indexer.protocol === protocol &&
         ((!this.indexers.length && !chosenTags.length) ||
           (chosenTags.length &&
-            indexer.tags.some((tag) => chosenTags.includes(tag))) ||
+            indexer.tags.some((tag: number) => chosenTags.includes(tag))) ||
           (this.indexers.length &&
             (this.indexers.includes(indexer.name.toLowerCase()) ||
               this.indexers.includes(indexer.definitionName.toLowerCase()) ||

@@ -1,3 +1,8 @@
-﻿c8add1d8 fix(frontend): show changes for ranked sel + future proofing (#668)
-bbed45d4 feat: Add hasNextEpisode and dasUntilNextEpisode SEL constants (#670)
-bddd417b fix: Move when bitrate is calculated (#672)
+﻿72e3bddb chore: release 2.23.1 (#709)
+5e024fa5 fix: add fallback to handle previously stored exprNames
+71d172b3 fix: use # comments for override names (#716)
+d11f3d61 fix: ensure size is finite and positive before returning
+781171c2 fix: dont match por as portuguese
+639e41b0 fix: increase ttl of lock to higher than timeout
+e49259a4 fix(fronted): Allow negatives in overrides (#715)
+a499b8ad chore: update parser

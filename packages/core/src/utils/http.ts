@@ -70,7 +70,7 @@ export async function makeRequest(url: string, options: RequestOptions) {
   if (Env.REQUEST_URL_MAPPINGS) {
     for (const [key, value] of Object.entries(Env.REQUEST_URL_MAPPINGS)) {
       if (urlObj.origin === key) {
-        const mappedUrl = new URL(value);
+        const mappedUrl = new URL(value as string);
         urlObj.protocol = mappedUrl.protocol;
         urlObj.host = mappedUrl.host;
         urlObj.port = mappedUrl.port;
@@ -268,7 +268,7 @@ export function domainHasUserAgent(url: URL) {
   }
 
   const mappings = Array.from(Env.HOSTNAME_USER_AGENT_OVERRIDES.entries());
-  for (const [ruleHostname, ruleUserAgent] of mappings) {
+  for (const [ruleHostname, ruleUserAgent] of mappings as [string, string][]) {
     if (ruleHostname === '*') {
       userAgent = ruleUserAgent;
     } else if (ruleHostname.startsWith('*')) {

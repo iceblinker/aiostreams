@@ -203,7 +203,7 @@ export class UserRepository {
       //   );
       // }
       decryptedConfig.trusted =
-        Env.TRUSTED_UUIDS?.split(',').some((u) => new RegExp(u).test(uuid)) ??
+        Env.TRUSTED_UUIDS?.split(',').some((u: string) => new RegExp(u).test(uuid)) ??
         false;
       decryptedConfig.uuid = uuid;
       decryptedConfig.ip = undefined;
@@ -249,7 +249,7 @@ export class UserRepository {
           );
         }
         config.trusted =
-          Env.TRUSTED_UUIDS?.split(',').some((u) => new RegExp(u).test(uuid)) ??
+          Env.TRUSTED_UUIDS?.split(',').some((u: string) => new RegExp(u).test(uuid)) ??
           false;
         config.ip = undefined;
         let validatedConfig: UserData;

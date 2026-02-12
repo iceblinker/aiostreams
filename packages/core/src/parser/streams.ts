@@ -173,7 +173,7 @@ class StreamParser {
       }
       for (const [key, value] of Object.entries(Env.STREAM_URL_MAPPINGS)) {
         if (streamUrl.origin === key) {
-          const mappedUrl = new URL(value);
+          const mappedUrl = new URL(value as string);
           streamUrl.protocol = mappedUrl.protocol;
           streamUrl.host = mappedUrl.host;
           streamUrl.port = mappedUrl.port;

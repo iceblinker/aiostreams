@@ -293,7 +293,7 @@ const logStartupInfo = () => {
         `${Object.keys(Env.ALIASED_CONFIGURATIONS).length} configured`
       );
       Object.entries(Env.ALIASED_CONFIGURATIONS).forEach(
-        ([alias, { uuid, password }]) => {
+        ([alias, { uuid, password }]: [string, any]) => {
           logKeyValue(`  → ${alias}:`, `${uuid}:${password}`, '       ');
         }
       );
