@@ -229,7 +229,15 @@ const aliasedUUIDs = makeExactValidator((x: string) => {
   try {
     const aliases: Map<string, { uuid: string; password: string }> = new Map();
     x.split(',').forEach((x: string) => {
-      const [alias, uuid, password] = x.split(':');
+      // Split only on the first two colons to handle passwords with colons
+      const parts = x.split(':');
+      if (parts.length < 3) {
+        throw new Error('Invalid alias:uuid:password pair');
+      }
+      const alias = parts[0];
+      const uuid = parts[1];
+      const password = parts.slice(2).join(':'); // Rejoin password parts that may contain colons
+      
       if (!alias || !uuid || !password) {
         throw new Error('Invalid alias:uuid:password pair');
       } else if (
