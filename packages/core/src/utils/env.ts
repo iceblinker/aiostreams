@@ -49,8 +49,11 @@ try {
 }
 
 const secretKey = makeValidator((x: string) => {
-  const trimmed = x.trim();
+  const trimmed = x.trim().replace(/[\u0000-\u001F\u007F-\u009F]/g, ''); // Remove control characters
   if (!/^[0-9a-fA-F]{64}$/.test(trimmed)) {
+    console.error(
+      `DEBUG: SECRET_KEY validation failed. Value: "${trimmed}", Length: ${trimmed.length}`
+    );
     throw new EnvError(
       `Secret key must be a 64-character hex string (got "${trimmed}" with length ${trimmed.length})`
     );
