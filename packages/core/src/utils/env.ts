@@ -49,20 +49,21 @@ try {
 }
 
 const secretKey = makeValidator((x: string) => {
-  if (!/^[0-9a-fA-F]{64}$/.test(x)) {
+  const trimmed = x.trim();
+  if (!/^[0-9a-fA-F]{64}$/.test(trimmed)) {
     throw new EnvError('Secret key must be a 64-character hex string');
   }
-  return x;
+  return trimmed;
 });
 
 const commaSeparated = makeExactValidator<string[]>((x: string) => {
-  if (x === '') {
+  if (x === '' || x === undefined || x === null) {
     return [];
   }
-  const parsed = x.split(',').map((item: string) => item.trim());
-  if (parsed.some((item: string) => item === '')) {
-    throw new EnvError('Comma separated values cannot be empty');
-  }
+  const parsed = x
+    .split(',')
+    .map((item: string) => item.trim())
+    .filter((item: string) => item !== '');
   return parsed;
 });
 
@@ -143,7 +144,7 @@ const url = makeValidator((x: string) => {
     throw new EnvError(`Invalid URL: ${x}`);
   }
   // remove trailing slash
-  return removeTrailingSlash(x);
+  return removeTrailingSlash(x.trim());
 });
 
 const size = makeValidator<number>((input: string) => {
@@ -227,17 +228,19 @@ const userAgentMappings = makeValidator<Map<string, string>>((x: unknown) => {
 // comma separated list of alias:uuid
 const aliasedUUIDs = makeExactValidator((x: string) => {
   try {
+    const trimmed = x.trim();
+    if (trimmed === '') return new Map();
     const aliases: Map<string, { uuid: string; password: string }> = new Map();
-    x.split(',').forEach((x: string) => {
+    trimmed.split(',').forEach((item: string) => {
       // Split only on the first two colons to handle passwords with colons
-      const parts = x.split(':');
+      const parts = item.split(':');
       if (parts.length < 3) {
         throw new Error('Invalid alias:uuid:password pair');
       }
-      const alias = parts[0];
-      const uuid = parts[1];
-      const password = parts.slice(2).join(':'); // Rejoin password parts that may contain colons
-      
+      const alias = parts[0].trim();
+      const uuid = parts[1].trim();
+      const password = parts.slice(2).join(':').trim(); // Rejoin password parts that may contain colons
+
       if (!alias || !uuid || !password) {
         throw new Error('Invalid alias:uuid:password pair');
       } else if (
@@ -268,10 +271,14 @@ const proxyAuth = makeValidator((x: unknown) => {
   if (typeof x !== 'string') {
     throw new EnvError('Proxy auth must be a string');
   }
+  const trimmed = x.trim();
+  if (trimmed === '') return new Map();
   // comma separated list of username:password
   const userMap: Map<string, string> = new Map();
-  x.split(',').forEach((x: string) => {
-    const [username, password] = x.split(':');
+  trimmed.split(',').forEach((item: string) => {
+    const parts = item.split(':').map((s) => s.trim());
+    const username = parts[0];
+    const password = parts.slice(1).join(':');
     if (!username || !password) {
       throw new EnvError(
         'Proxy auth must be a comma separated list of username:password pairs'
@@ -286,10 +293,12 @@ const connectionLimits = makeValidator((x: unknown) => {
   if (typeof x !== 'string') {
     throw new EnvError('Connection limits must be a string');
   }
+  const trimmed = x.trim();
+  if (trimmed === '') return new Map();
   // comma separated list of username:limit where limit is a number
   const limitMap: Map<string, number> = new Map();
-  x.split(',').forEach((x: string) => {
-    const [username, limitStr] = x.split(':');
+  trimmed.split(',').forEach((item: string) => {
+    const [username, limitStr] = item.split(':');
     if (!username || !limitStr) {
       throw new EnvError(
         'Connection limits must be a comma separated list of username:limit pairs'
@@ -323,7 +332,9 @@ const urlMappings = makeValidator<Record<string, string>>((x: unknown) => {
   if (typeof x !== 'string') {
     throw new EnvError('URL mappings must be a string (JSON)');
   }
-  const parsed = JSON.parse(x);
+  const trimmed = x.trim();
+  if (trimmed === '') return {};
+  const parsed = JSON.parse(trimmed);
   if (typeof parsed !== 'object' || parsed === null) {
     throw new EnvError('URL mappings must be an object');
   }
@@ -421,7 +432,8 @@ export const Env = cleanEnv(process.env, {
     desc: 'Tag of the addon',
   }),
   DESCRIPTION: readonly({
-    default: metadata?.description || 'A unified studio addon for streaming content.',
+    default:
+      metadata?.description || 'A unified studio addon for streaming content.',
     desc: 'Description of the addon',
   }),
   NODE_ENV: str({
