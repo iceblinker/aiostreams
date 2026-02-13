@@ -51,7 +51,9 @@ try {
 const secretKey = makeValidator((x: string) => {
   const trimmed = x.trim();
   if (!/^[0-9a-fA-F]{64}$/.test(trimmed)) {
-    throw new EnvError('Secret key must be a 64-character hex string');
+    throw new EnvError(
+      `Secret key must be a 64-character hex string (got "${trimmed}" with length ${trimmed.length})`
+    );
   }
   return trimmed;
 });
