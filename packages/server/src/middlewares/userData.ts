@@ -29,7 +29,8 @@ export const userDataMiddleware = async (
   res: Response,
   next: NextFunction
 ) => {
-  const { uuid: uuidOrAlias, encryptedPassword } = req.params;
+  const uuidOrAlias = req.params.uuid as string;
+  const encryptedPassword = req.params.encryptedPassword as string;
 
   // Both uuid and encryptedPassword should be present since we mounted the router on this path
   if (!uuidOrAlias || !encryptedPassword) {
@@ -65,7 +66,7 @@ export const userDataMiddleware = async (
 
   try {
     // Check if user exists
-    const userExists = await UserRepository.checkUserExists(uuid);
+    const userExists = await UserRepository.checkUserExists(uuid!);
     if (!userExists) {
       if (constants.RESOURCES.includes(resource as Resource)) {
         res.status(200).json(
@@ -98,7 +99,7 @@ export const userDataMiddleware = async (
     }
 
     // Get and validate user data
-    let userData = await UserRepository.getUser(uuid, decryptedPassword);
+    let userData = await UserRepository.getUser(uuid!, decryptedPassword!);
 
     if (!userData) {
       if (constants.RESOURCES.includes(resource as Resource)) {
@@ -124,8 +125,8 @@ export const userDataMiddleware = async (
           userData.syncedPreferredRegexUrls,
           userData.preferredRegexPatterns || [],
           userData,
-          (regex) => regex,
-          (regex) => regex.pattern
+          (regex: any) => regex,
+          (regex: any) => regex.pattern
         );
       } catch (error: any) {
         logger.warn(
@@ -138,8 +139,8 @@ export const userDataMiddleware = async (
           userData.syncedExcludedRegexUrls,
           userData.excludedRegexPatterns || [],
           userData,
-          (regex) => regex.pattern,
-          (pattern) => pattern
+          (regex: any) => regex.pattern,
+          (pattern: any) => pattern
         );
       } catch (error: any) {
         logger.warn(`Failed to sync excluded regex patterns: ${error.message}`);
@@ -150,8 +151,8 @@ export const userDataMiddleware = async (
           userData.syncedRequiredRegexUrls,
           userData.requiredRegexPatterns || [],
           userData,
-          (regex) => regex.pattern,
-          (pattern) => pattern
+          (regex: any) => regex.pattern,
+          (pattern: any) => pattern
         );
       } catch (error: any) {
         logger.warn(`Failed to sync required regex patterns: ${error.message}`);
@@ -162,8 +163,8 @@ export const userDataMiddleware = async (
           userData.syncedIncludedRegexUrls,
           userData.includedRegexPatterns || [],
           userData,
-          (regex) => regex.pattern,
-          (pattern) => pattern
+          (regex: any) => regex.pattern,
+          (pattern: any) => pattern
         );
       } catch (error: any) {
         logger.warn(`Failed to sync included regex patterns: ${error.message}`);
@@ -174,12 +175,12 @@ export const userDataMiddleware = async (
           userData.syncedRankedRegexUrls,
           userData.rankedRegexPatterns || [],
           userData,
-          (regex) => ({
+          (regex: any) => ({
             pattern: regex.pattern,
             name: regex.name,
             score: regex.score || 0,
           }),
-          (item) => item.pattern
+          (item: any) => item.pattern
         );
       } catch (error: any) {
         logger.warn(`Failed to sync ranked regex patterns: ${error.message}`);
@@ -192,8 +193,8 @@ export const userDataMiddleware = async (
             userData.syncedPreferredStreamExpressionUrls,
             userData.preferredStreamExpressions || [],
             userData,
-            (item) => item.expression,
-            (expr) => expr
+            (item: any) => item.expression,
+            (expr: any) => expr
           );
       } catch (error: any) {
         logger.warn(
@@ -207,8 +208,8 @@ export const userDataMiddleware = async (
             userData.syncedExcludedStreamExpressionUrls,
             userData.excludedStreamExpressions || [],
             userData,
-            (item) => item.expression,
-            (expr) => expr
+            (item: any) => item.expression,
+            (expr: any) => expr
           );
       } catch (error: any) {
         logger.warn(
@@ -222,8 +223,8 @@ export const userDataMiddleware = async (
             userData.syncedRequiredStreamExpressionUrls,
             userData.requiredStreamExpressions || [],
             userData,
-            (item) => item.expression,
-            (expr) => expr
+            (item: any) => item.expression,
+            (expr: any) => expr
           );
       } catch (error: any) {
         logger.warn(
@@ -237,8 +238,8 @@ export const userDataMiddleware = async (
             userData.syncedIncludedStreamExpressionUrls,
             userData.includedStreamExpressions || [],
             userData,
-            (item) => item.expression,
-            (expr) => expr
+            (item: any) => item.expression,
+            (expr: any) => expr
           );
       } catch (error: any) {
         logger.warn(
@@ -252,12 +253,12 @@ export const userDataMiddleware = async (
             userData.syncedRankedStreamExpressionUrls,
             userData.rankedStreamExpressions || [],
             userData,
-            (item) => ({
+            (item: any) => ({
               expression: item.expression,
               score: item.score || 0,
               enabled: item.enabled ?? true,
             }),
-            (item) => item.expression
+            (item: any) => item.expression
           );
       } catch (error: any) {
         logger.warn(
