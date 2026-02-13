@@ -7,6 +7,7 @@ import { ZodError } from 'zod';
 import { formatZodError, applyMigrations } from './config.js';
 import { RegexAccess } from './regex-access.js';
 import { createLogger } from './logger.js';
+import { SelAccess } from './sel-access.js';
 
 const logger = createLogger('templates');
 
@@ -49,14 +50,49 @@ export class TemplateManager {
         ...(template.config.preferredRegexPatterns || []).map(
           (pattern) => pattern.pattern
         ),
+        ...(template.config.rankedRegexPatterns || []).map(
+          (pattern) => pattern.pattern
+        ),
       ];
     });
+
+    const syncedSelUrlsInTemplates = this.templates.flatMap((template) => {
+      return [
+        ...(template.config.syncedExcludedStreamExpressionUrls || []),
+        ...(template.config.syncedIncludedStreamExpressionUrls || []),
+        ...(template.config.syncedRequiredStreamExpressionUrls || []),
+        ...(template.config.syncedPreferredStreamExpressionUrls || []),
+        ...(template.config.syncedRankedStreamExpressionUrls || []),
+      ];
+    });
+
+    const syncedRegexUrlsInTemplates = this.templates.flatMap((template) => {
+      return [
+        ...(template.config.syncedExcludedRegexUrls || []),
+        ...(template.config.syncedIncludedRegexUrls || []),
+        ...(template.config.syncedRequiredRegexUrls || []),
+        ...(template.config.syncedPreferredRegexUrls || []),
+        ...(template.config.syncedRankedRegexUrls || []),
+      ];
+    });
+
     const errors = [...builtinTemplates.errors, ...customTemplates.errors];
-    logger.info(
-      `Loaded ${this.templates.length} templates from ${builtinTemplates.detected + customTemplates.detected} detected templates. ${patternsInTemplates.length} regex patterns detected. ${errors.length} errors occurred.`
-    );
+    logger.info(`Loaded templates`, {
+      totalTemplates: this.templates.length,
+      detectedTemplates: builtinTemplates.detected + customTemplates.detected,
+      patternsInTemplates: patternsInTemplates.length,
+      syncedSelUrlsInTemplates: syncedSelUrlsInTemplates.length,
+      syncedRegexUrlsInTemplates: syncedRegexUrlsInTemplates.length,
+      errors: errors.length,
+    });
     if (patternsInTemplates.length > 0) {
       RegexAccess.addPatterns(patternsInTemplates);
+    }
+    if (syncedSelUrlsInTemplates.length > 0) {
+      SelAccess.addAllowedUrls(syncedSelUrlsInTemplates);
+    }
+    if (syncedRegexUrlsInTemplates.length > 0) {
+      RegexAccess.addAllowedUrls(syncedRegexUrlsInTemplates);
     }
     if (errors.length > 0) {
       logger.error(
@@ -84,19 +120,22 @@ export class TemplateManager {
       const filePath = path.join(dirPath, file);
       try {
         if (file.endsWith('.json')) {
-          const rawTemplate = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-          // Apply migrations to the config before parsing
-          if (rawTemplate.config) {
-            rawTemplate.config = applyMigrations(rawTemplate.config);
+          const raw = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+          const rawTemplates = Array.isArray(raw) ? raw : [raw];
+          for (const rawTemplate of rawTemplates) {
+            // Apply migrations to the config before parsing
+            if (rawTemplate.config) {
+              rawTemplate.config = applyMigrations(rawTemplate.config);
+            }
+            const template = TemplateSchema.parse(rawTemplate);
+            templateList.push({
+              ...template,
+              metadata: {
+                ...template.metadata,
+                source,
+              },
+            });
           }
-          const template = TemplateSchema.parse(rawTemplate);
-          templateList.push({
-            ...template,
-            metadata: {
-              ...template.metadata,
-              source,
-            },
-          });
         }
       } catch (error) {
         errors.push({
