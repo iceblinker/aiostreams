@@ -10,13 +10,19 @@ services:
     volumes:
       - ./data:/app/data
     networks:
+      - caddy_net
       - ai_network
-      - default
+    depends_on:
+      redis:
+        condition: service_healthy
+      mediaflow-proxy:
+        condition: service_started
     environment:
+      - REDIS_URI=redis://redis:6379
       - OLLAMA_HOST=http://ollama:11434
       - SEARCH_HOST=http://search-api:8080
       - STREMIO_ADDON_HOST=http://stremio-addon:8080
-      - MEDIAFLOW_HOST=http://mediaflow-proxy:8000
+      - MEDIAFLOW_HOST=http://mediaflow-proxy:8888
       - CHROMADB_HOST=http://chromadb:8000
     healthcheck:
       test: wget -qO- http://localhost:3000/api/v1/status
@@ -24,6 +30,29 @@ services:
       timeout: 10s
       retries: 5
       start_period: 10s
+
+  mediaflow-proxy:
+    image: mhdzumair/mediaflow-proxy:latest
+    container_name: mediaflow-proxy
+    restart: unless-stopped
+    environment:
+      - API_PASSWORD=${API_PASSWORD}
+    networks:
+      - caddy_net
+      - ai_network
+
+  nzbdav:
+    image: viren070/nzbdav:latest
+    container_name: nzbdav
+    restart: unless-stopped
+    environment:
+      - NZB_DIRECTORY=/data/nzbs
+      - SABNZBD_API_KEY=8072d6bf508c43409ca44c9a0aa605b7
+    volumes:
+      - ./data/nzbs:/data/nzbs
+    networks:
+      - caddy_net
+      - ai_network
 
   redis:
     image: redis:alpine
@@ -33,13 +62,16 @@ services:
     volumes:
       - ./data/redis:/data
     networks:
-      - default
+      - caddy_net
+      - ai_network
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ['CMD', 'redis-cli', 'ping']
       interval: 30s
       timeout: 10s
       retries: 5
 
 networks:
+  caddy_net:
+    external: true
   ai_network:
     external: true
